@@ -15,7 +15,7 @@ A small native macOS app that shows time-synchronized lyrics for the currently p
 - Press **Option + Shift + L** to show or hide the overlay globally.
 - Works across macOS spaces; behavior in full-screen apps can vary.
 
-Lyrics are looked up on [LRCLIB](https://lrclib.net/), not obtained from Spotify. Availability, accuracy, and synchronization vary by track. The app displays only results with synchronized timestamps and a plausible title, artist, and duration match.
+Lyrics are looked up on [LRCLIB](https://lrclib.net/), not obtained from the music player. Availability, accuracy, and synchronization vary by track. The app first asks LRCLIB for the exact track (title, artist, album, and duration), then falls back to a search. It only shows results with a plausible title, artist, and duration match. Synced lyrics are preferred. When a track only has plain lyrics, the lines are spread evenly over the song and marked **~ not synced**. Results are cached locally, so replaying a song needs no network request.
 
 ## Requirements
 
@@ -52,7 +52,7 @@ The build script creates a locally ad-hoc-signed app, not a Developer ID-signed 
 
 ## Privacy and third-party services
 
-For each track lookup, the app sends the song title and artist to LRCLIB over HTTPS. LRCLIB receives the request and associated network metadata, such as your IP address. Spotify playback details are read locally through macOS Automation. Settings and the window position are stored locally in macOS preferences. No application analytics are implemented in this prototype.
+For each track lookup that is not cached, the app sends the song title, artist, album, and duration to LRCLIB over HTTPS. LRCLIB receives the request and associated network metadata, such as your IP address. Spotify playback details are read locally through macOS Automation. Settings and the window position are stored locally in macOS preferences. Lookup results are cached in `~/Library/Application Support/io.github.mikeleonfox.lyricsoverlay/lyrics-cache.json` (up to 500 tracks; "not found" results are retried after 7 days). Delete that file to clear the cache. No application analytics are implemented in this prototype.
 
 LRCLIB is a third-party service, and its availability and policies may change. Users and distributors are responsible for considering applicable terms and rights relating to lyrics. This project is not affiliated with Spotify or LRCLIB.
 
@@ -65,7 +65,7 @@ swift run LyricsCoreChecks
 bash build-release.sh
 ```
 
-The checks cover LRC parsing and conservative track matching. They do not replace an end-to-end test with Spotify: verify the automation prompt, loading lyrics, pausing, seeking, changing tracks, the overlay controls, and the global shortcut. XCTest is not available in every Command Line Tools installation, so the current checks use a standalone executable.
+The checks cover LRC parsing, conservative track matching, localization, the playback clock, plain-lyrics timing, and the lyrics cache. They do not replace an end-to-end test with Spotify: verify the automation prompt, loading lyrics, pausing, seeking, changing tracks, the overlay controls, and the global shortcut. XCTest is not available in every Command Line Tools installation, so the current checks use a standalone executable.
 
 ## License
 

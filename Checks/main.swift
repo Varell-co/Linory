@@ -70,8 +70,79 @@ func checkPlaybackClock() {
     precondition(clock.position(at: t0) == 0 && !clock.playing, "reset zeroes the clock")
 }
 
+func decode(_ json: String) throws -> [LyricsResult] { try JSONDecoder().decode([LyricsResult].self, from: Data(json.utf8)) }
+
+func checkBestAny() throws {
+    let both = try decode("""
+    [
+      {"trackName":"Song","artistName":"Artist","duration":200,"plainLyrics":"Plain line","syncedLyrics":null},
+      {"trackName":"Song","artistName":"Artist","duration":200,"plainLyrics":"Plain line","syncedLyrics":"[00:01.00] Synced line"}
+    ]
+    """)
+    precondition(LyricsMatching.bestAny(both, title: "Song", artist: "Artist", duration: 200)?.syncedLyrics != nil, "prefers synced")
+    let plainOnly = try decode("""
+    [
+      {"trackName":"Song","artistName":"Artist","duration":203,"plainLyrics":"Plain line","syncedLyrics":null},
+      {"trackName":"Song","artistName":"Someone else","duration":200,"plainLyrics":"Wrong","syncedLyrics":"[00:01.00] Wrong"},
+      {"trackName":"Song","artistName":"Artist","duration":206,"plainLyrics":"Too far","syncedLyrics":"[00:01.00] Too far"}
+    ]
+    """)
+    precondition(LyricsMatching.bestAny(plainOnly, title: "Song", artist: "Artist", duration: 200)?.plainLyrics == "Plain line", "falls back to plain")
+    precondition(LyricsMatching.bestAny(plainOnly, title: "Song", artist: "Other", duration: 200) == nil, "rejects wrong artist")
+    precondition(LyricsMatching.bestAny(plainOnly, title: "Song", artist: "Artist", duration: 230) == nil, "rejects duration off by > 5 s")
+    let instrumental = try decode(#"[{"trackName":"Song","artistName":"Artist","duration":200,"instrumental":true}]"#)
+    let match = LyricsMatching.bestAny(instrumental, title: "Song", artist: "Artist", duration: 200)
+    precondition(match.flatMap { LoadedLyrics.make(from: $0, duration: 200) }?.instrumental == true, "instrumental match")
+}
+
+func checkGetResponse() throws {
+    // Shape of an LRCLIB /api/get response; lyrics text is invented.
+    let json = #"""
+    {"id":1,"name":"Song","trackName":"Song","artistName":"Artist","albumName":"Album","duration":180.0,"instrumental":false,
+     "plainLyrics":"Made up line one\nMade up line two","syncedLyrics":"[00:01.00] Made up line one\n[00:04.00] Made up line two"}
+    """#
+    let result = try JSONDecoder().decode(LyricsResult.self, from: Data(json.utf8))
+    precondition(result.albumName == "Album" && result.instrumental == false && result.plainLyrics?.isEmpty == false)
+    let loaded = LoadedLyrics.make(from: result, duration: 180)
+    precondition(loaded?.synced == true && loaded?.lines.count == 2)
+}
+
+func checkPlainEstimate() {
+    let lines = PlainLyrics.estimate(text: "One\n\n  Two  \nThree\nFour\n", duration: 200)
+    precondition(lines.map(\.text) == ["One", "Two", "Three", "Four"], "drops blank lines and trims")
+    let lead = min(10, 200 * 0.05)
+    precondition(lines.first!.time == lead && lines.last!.time < 200 * 0.95, "inside bounds")
+    let gaps = zip(lines.dropFirst(), lines).map { $0.time - $1.time }
+    precondition(gaps.allSatisfy { $0 > 0 && abs($0 - gaps[0]) < 0.0001 }, "evenly spaced and increasing")
+    precondition(PlainLyrics.estimate(text: " \n ", duration: 200).isEmpty)
+    precondition(PlainLyrics.estimate(text: "One", duration: 0).isEmpty)
+}
+
+func checkCache() {
+    precondition(LyricsCacheKey.make(title: "Café Song", artist: "ARTIST", duration: 200.4) == LyricsCacheKey.make(title: "cafe song", artist: "artist", duration: 199.6))
+    let t0 = Date(timeIntervalSince1970: 0)
+    let day: TimeInterval = 24 * 60 * 60
+    let found = LoadedLyrics(lines: [LyricLine(time: 1, text: "x")], synced: true, instrumental: false)
+    var store = LyricsCacheStore()
+    store.insert(LyricsCacheEntry(lyrics: nil, fetchedAt: t0), for: "missing")
+    store.insert(LyricsCacheEntry(lyrics: found, fetchedAt: t0), for: "found")
+    precondition(store.lookup("missing", now: t0.addingTimeInterval(6 * day)) != nil, "not-found valid for 7 days")
+    precondition(store.lookup("missing", now: t0.addingTimeInterval(7 * day)) == nil, "not-found expires")
+    precondition(store.lookup("found", now: t0.addingTimeInterval(365 * day))?.lyrics == found, "found never expires")
+
+    var full = LyricsCacheStore()
+    for i in 0...LyricsCacheStore.capacity { // 501 entries
+        full.insert(LyricsCacheEntry(lyrics: found, fetchedAt: t0.addingTimeInterval(Double(i))), for: "k\(i)")
+    }
+    precondition(full.entries.count == LyricsCacheStore.capacity && full.entries["k0"] == nil && full.entries["k1"] != nil, "evicts the oldest")
+}
+
 checkParsing()
 try checkMatching()
 checkLocalization()
 checkPlaybackClock()
+try checkBestAny()
+try checkGetResponse()
+checkPlainEstimate()
+checkCache()
 print("LyricsCore checks passed")

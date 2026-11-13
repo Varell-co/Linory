@@ -27,7 +27,7 @@ public enum L10nKey: String, CaseIterable {
     case hotKeyErrorTitle, hotKeyErrorText
     // Status messages
     case statusWaitingForPlayer, statusOpenPlayer, statusAutomationDenied, statusPlayerError
-    case statusNoTrack, statusSearching, statusNetworkError, statusNoLyrics
+    case statusNoTrack, statusSearching, statusNetworkError, statusNoLyrics, statusInstrumental, statusNotSynced
 }
 
 public enum L10n {
@@ -83,9 +83,11 @@ public enum L10n {
             .statusAutomationDenied: "Allow access to Spotify: System Settings → Privacy & Security → Automation.",
             .statusPlayerError: "Spotify could not be read: %@",
             .statusNoTrack: "Play a song in Spotify.",
-            .statusSearching: "Searching for synced lyrics…",
+            .statusSearching: "Searching for lyrics…",
             .statusNetworkError: "Lyrics could not be loaded. Check your internet connection.",
-            .statusNoLyrics: "No synced lyrics found for this song.",
+            .statusNoLyrics: "No lyrics found for this song.",
+            .statusInstrumental: "♪ Instrumental",
+            .statusNotSynced: "~ not synced",
         ],
         .de: [
             .hideOverlay: "Overlay ausblenden",
@@ -125,9 +127,11 @@ public enum L10n {
             .statusAutomationDenied: "Spotify-Zugriff erlauben: Systemeinstellungen → Datenschutz & Sicherheit → Automation.",
             .statusPlayerError: "Spotify konnte nicht gelesen werden: %@",
             .statusNoTrack: "Spiele einen Song in Spotify ab.",
-            .statusSearching: "Suche synchronisierte Lyrics …",
+            .statusSearching: "Suche Lyrics …",
             .statusNetworkError: "Lyrics konnten nicht geladen werden. Prüfe deine Internetverbindung.",
-            .statusNoLyrics: "Keine synchronisierten Lyrics für diesen Song gefunden.",
+            .statusNoLyrics: "Keine Lyrics für diesen Song gefunden.",
+            .statusInstrumental: "♪ Instrumental",
+            .statusNotSynced: "~ nicht synchron",
         ],
     ]
 }
@@ -136,7 +140,7 @@ public enum L10n {
 public enum StatusMessage: Equatable, Error {
     case waitingForPlayer, openPlayer, automationDenied
     case playerError(String)
-    case noTrack, searching, networkError, noLyrics
+    case noTrack, searching, networkError, noLyrics, instrumental, notSynced
 
     public func text(language: AppLanguage) -> String {
         switch self {
@@ -148,6 +152,8 @@ public enum StatusMessage: Equatable, Error {
         case .searching: return L10n.string(.statusSearching, language: language)
         case .networkError: return L10n.string(.statusNetworkError, language: language)
         case .noLyrics: return L10n.string(.statusNoLyrics, language: language)
+        case .instrumental: return L10n.string(.statusInstrumental, language: language)
+        case .notSynced: return L10n.string(.statusNotSynced, language: language)
         }
     }
 }

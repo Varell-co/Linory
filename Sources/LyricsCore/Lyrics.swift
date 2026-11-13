@@ -1,6 +1,6 @@
 import Foundation
 
-public struct LyricLine: Equatable {
+public struct LyricLine: Equatable, Codable {
     public let time: TimeInterval
     public let text: String
     public init(time: TimeInterval, text: String) { self.time = time; self.text = text }
@@ -30,26 +30,51 @@ public enum LRC {
     }
 }
 
+/// One LRCLIB record, as returned by `/api/get` and `/api/search`. Optional fields tolerate missing keys.
 public struct LyricsResult: Decodable {
     public let trackName: String
     public let artistName: String
+    public let albumName: String?
     public let duration: Double
+    public let instrumental: Bool?
+    public let plainLyrics: String?
     public let syncedLyrics: String?
+
+    var hasSynced: Bool { !(syncedLyrics ?? "").isEmpty && !LRC.parse(syncedLyrics ?? "").isEmpty }
+    var hasPlain: Bool { !(plainLyrics ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 }
 
 public enum LyricsMatching {
-    private static func normalized(_ value: String) -> String {
+    public static func normalized(_ value: String) -> String {
         value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
             .components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: " ")
     }
-    public static func best(_ results: [LyricsResult], title: String, artist: String, duration: Double) -> LyricsResult? {
+    /// Same title, same artist (or artist followed by featured artists), duration within ±5 s.
+    private static func plausible(_ results: [LyricsResult], title: String, artist: String, duration: Double) -> [LyricsResult] {
         let title = normalized(title), artist = normalized(artist)
+        guard !title.isEmpty, !artist.isEmpty else { return [] }
         return results.filter { result in
             let candidateArtist = normalized(result.artistName)
-            return !title.isEmpty && !artist.isEmpty && normalized(result.trackName) == title &&
+            return normalized(result.trackName) == title &&
                 (candidateArtist == artist || candidateArtist.hasPrefix(artist + " ")) &&
-                abs(result.duration - duration) <= 5 &&
-                !(result.syncedLyrics ?? "").isEmpty && !LRC.parse(result.syncedLyrics ?? "").isEmpty
-        }.min { abs($0.duration - duration) < abs($1.duration - duration) }
+                abs(result.duration - duration) <= 5
+        }
+    }
+
+    private static func closest(_ results: [LyricsResult], to duration: Double) -> LyricsResult? {
+        results.min { abs($0.duration - duration) < abs($1.duration - duration) }
+    }
+
+    /// Closest plausible match with synced lyrics.
+    public static func best(_ results: [LyricsResult], title: String, artist: String, duration: Double) -> LyricsResult? {
+        closest(plausible(results, title: title, artist: artist, duration: duration).filter(\.hasSynced), to: duration)
+    }
+
+    /// Prefers synced lyrics, then plain lyrics, then an instrumental match.
+    public static func bestAny(_ results: [LyricsResult], title: String, artist: String, duration: Double) -> LyricsResult? {
+        let candidates = plausible(results, title: title, artist: artist, duration: duration)
+        return closest(candidates.filter(\.hasSynced), to: duration)
+            ?? closest(candidates.filter(\.hasPlain), to: duration)
+            ?? closest(candidates.filter { $0.instrumental == true }, to: duration)
     }
 }

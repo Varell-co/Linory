@@ -11,10 +11,11 @@ struct OverlayView: View {
     @AppStorage("language") private var languageSetting = AppLanguage.system.rawValue
     private var language: AppLanguage { (AppLanguage(rawValue: languageSetting) ?? .system).resolved(preferredLanguages: Locale.preferredLanguages) }
 
+    private var lines: [LyricLine] { model.lyrics?.lines ?? [] }
     private func visibleLines(active: Int?) -> [(Int, LyricLine)] {
-        guard !model.lines.isEmpty else { return [] }
+        guard !lines.isEmpty else { return [] }
         let start = max(0, (active ?? 0) - 1)
-        return Array(model.lines.enumerated().dropFirst(start).prefix(active == nil || active == 0 ? 3 : 4))
+        return Array(lines.enumerated().dropFirst(start).prefix(active == nil || active == 0 ? 3 : 4))
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -29,14 +30,17 @@ struct OverlayView: View {
                 Text(model.track.map { "\($0.title)  ·  \($0.artist)" } ?? L10n.string(.overlayPlaceholder, language: language))
                     .lineLimit(1)
                 Spacer(minLength: 0)
+                if model.lyrics?.synced == false && !lines.isEmpty {
+                    Text(StatusMessage.notSynced.text(language: language)).italic().layoutPriority(1)
+                }
             }
             .font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.62))
-            if model.lines.isEmpty {
+            if lines.isEmpty {
                 Text(model.status.text(language: language)).font(.system(size: 15, weight: .medium)).foregroundStyle(.white.opacity(0.8))
             } else {
                 // Redraws between polls from the interpolated clock; paused while playback is paused.
                 TimelineView(.animation(minimumInterval: 0.05, paused: !model.clock.playing)) { context in
-                    lyrics(active: LRC.currentIndex(model.lines, at: model.clock.position(at: context.date) + offset))
+                    lyrics(active: LRC.currentIndex(lines, at: model.clock.position(at: context.date) + offset))
                 }
             }
             Spacer(minLength: 0)
