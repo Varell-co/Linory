@@ -19,7 +19,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
-  <key>NSAppleEventsUsageDescription</key><string>Lyrics Overlay reads the current track and playback position to show synchronized lyrics.</string>
+  <key>NSAppleEventsUsageDescription</key><string>Lyrics Overlay reads the current track and playback position from Spotify or Music to show synchronized lyrics.</string>
 </dict></plist>
 PLIST
 codesign --force --deep --sign - "$APP"

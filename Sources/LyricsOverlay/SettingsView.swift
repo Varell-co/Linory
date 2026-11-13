@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage("overlayWidth") private var width = 400.0
     @AppStorage("overlayHeight") private var height = 240.0
     @AppStorage("language") private var languageSetting = AppLanguage.system.rawValue
+    @AppStorage("source") private var source = SourcePreference.auto.rawValue
     var resize: () -> Void
 
     private var language: AppLanguage { (AppLanguage(rawValue: languageSetting) ?? .system).resolved(preferredLanguages: Locale.preferredLanguages) }
@@ -25,6 +26,12 @@ struct SettingsView: View {
             control(t(.height), value: $height, range: 160...500, suffix: " px")
             section(.sectionTiming)
             control(t(.timingOffset), value: $offset, range: -5...5, suffix: " s", decimals: 1)
+            section(.sectionPlayback)
+            Picker(t(.source), selection: $source) {
+                Text(t(.sourceAuto)).tag(SourcePreference.auto.rawValue)
+                Text(t(.sourceSpotify)).tag(SourcePreference.spotify.rawValue)
+                Text(t(.sourceMusic)).tag(SourcePreference.music.rawValue)
+            }
             section(.sectionGeneral)
             Picker(t(.language), selection: $languageSetting) {
                 Text(t(.languageSystem)).tag(AppLanguage.system.rawValue)

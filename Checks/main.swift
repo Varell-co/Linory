@@ -38,7 +38,8 @@ func checkLocalization() {
     precondition(AppLanguage.system.resolved(preferredLanguages: []) == .en)
     precondition(AppLanguage.de.resolved(preferredLanguages: ["en-US"]) == .de)
     for language in [AppLanguage.en, .de] {
-        precondition(StatusMessage.playerError("detail-x").text(language: language).contains("detail-x"))
+        let text = StatusMessage.playerError(.music, "detail-x").text(language: language)
+        precondition(text.contains("detail-x") && text.contains(PlayerSource.music.name(language: language)))
     }
     precondition(StatusMessage.noLyrics.text(language: .de) != StatusMessage.noLyrics.text(language: .en))
 }
@@ -137,6 +138,23 @@ func checkCache() {
     precondition(full.entries.count == LyricsCacheStore.capacity && full.entries["k0"] == nil && full.entries["k1"] != nil, "evicts the oldest")
 }
 
+func checkPlayerSelection() {
+    let playing = PlayerState(running: true, playing: true)
+    let paused = PlayerState(running: true, playing: false)
+    let both: [PlayerSource: PlayerState] = [.spotify: playing, .music: playing]
+    precondition(PlayerSelection.choose(preference: .auto, states: both, current: .music) == .music, "auto keeps current while both play")
+    precondition(PlayerSelection.choose(preference: .auto, states: both, current: nil) == .spotify, "auto prefers Spotify first")
+    precondition(PlayerSelection.choose(preference: .auto, states: [.spotify: playing, .music: paused], current: .music) == .spotify, "auto switches when current pauses")
+    precondition(PlayerSelection.choose(preference: .auto, states: [.spotify: paused, .music: paused], current: .music) == .music, "auto keeps paused current")
+    precondition(PlayerSelection.choose(preference: .auto, states: [.music: paused], current: nil) == .music, "auto picks the running one")
+    precondition(PlayerSelection.choose(preference: .spotify, states: [.music: playing], current: .music) == nil, "manual: nil when not running")
+    precondition(PlayerSelection.choose(preference: .music, states: [.spotify: playing, .music: paused], current: .spotify) == .music, "manual forces source")
+    precondition(PlayerSelection.choose(preference: .auto, states: [:], current: .spotify) == nil, "nothing running")
+    let a = Track(source: .spotify, rawID: "42", title: "T", artist: "A", duration: 1)
+    let b = Track(source: .music, rawID: "42", title: "T", artist: "A", duration: 1)
+    precondition(a.id != b.id, "track ids differ across sources")
+}
+
 checkParsing()
 try checkMatching()
 checkLocalization()
@@ -145,4 +163,5 @@ try checkBestAny()
 try checkGetResponse()
 checkPlainEstimate()
 checkCache()
+checkPlayerSelection()
 print("LyricsCore checks passed")

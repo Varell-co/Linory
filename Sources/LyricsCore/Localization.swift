@@ -19,7 +19,8 @@ public enum L10nKey: String, CaseIterable {
     // Windows and overlay
     case settingsWindowTitle, openSettingsHelp, overlayPlaceholder
     // Settings
-    case sectionAppearance, sectionTiming, sectionGeneral
+    case sectionAppearance, sectionTiming, sectionPlayback, sectionGeneral
+    case source, sourceAuto, sourceSpotify, sourceMusic, playerNameSpotify, playerNameMusic
     case fontSize, overlayOpacity, backgroundOpacity, width, height, timingOffset, opacitySuffix
     case language, languageSystem, languageEnglish, languageGerman
     case settingsFooter
@@ -63,7 +64,14 @@ public enum L10n {
             .overlayPlaceholder: "LYRICS OVERLAY",
             .sectionAppearance: "APPEARANCE",
             .sectionTiming: "TIMING",
+            .sectionPlayback: "PLAYBACK",
             .sectionGeneral: "GENERAL",
+            .source: "Source",
+            .sourceAuto: "Auto",
+            .sourceSpotify: "Spotify",
+            .sourceMusic: "Apple Music",
+            .playerNameSpotify: "Spotify",
+            .playerNameMusic: "Music",
             .fontSize: "Font size",
             .overlayOpacity: "Opacity: whole overlay",
             .backgroundOpacity: "Opacity: background",
@@ -78,11 +86,11 @@ public enum L10n {
             .settingsFooter: "Show/hide overlay: ⌥ ⇧ L\nPositive offsets show lyrics earlier. Song title and artist are sent to LRCLIB for the search.",
             .hotKeyErrorTitle: "Shortcut unavailable",
             .hotKeyErrorText: "⌥ ⇧ L could not be registered. Another app may be using this shortcut. You can still show and hide the overlay from the menu.",
-            .statusWaitingForPlayer: "Waiting for Spotify…",
-            .statusOpenPlayer: "Open Spotify and play a song.",
-            .statusAutomationDenied: "Allow access to Spotify: System Settings → Privacy & Security → Automation.",
-            .statusPlayerError: "Spotify could not be read: %@",
-            .statusNoTrack: "Play a song in Spotify.",
+            .statusWaitingForPlayer: "Waiting for Spotify or Music…",
+            .statusOpenPlayer: "Open Spotify or Music and play a song.",
+            .statusAutomationDenied: "Allow access to %@: System Settings → Privacy & Security → Automation.",
+            .statusPlayerError: "%@ could not be read: %@",
+            .statusNoTrack: "Play a song in %@.",
             .statusSearching: "Searching for lyrics…",
             .statusNetworkError: "Lyrics could not be loaded. Check your internet connection.",
             .statusNoLyrics: "No lyrics found for this song.",
@@ -107,7 +115,14 @@ public enum L10n {
             .overlayPlaceholder: "LYRICS OVERLAY",
             .sectionAppearance: "DARSTELLUNG",
             .sectionTiming: "TIMING",
+            .sectionPlayback: "WIEDERGABE",
             .sectionGeneral: "ALLGEMEIN",
+            .source: "Quelle",
+            .sourceAuto: "Automatisch",
+            .sourceSpotify: "Spotify",
+            .sourceMusic: "Apple Music",
+            .playerNameSpotify: "Spotify",
+            .playerNameMusic: "Musik",
             .fontSize: "Schriftgröße",
             .overlayOpacity: "Transparenz: gesamtes Overlay",
             .backgroundOpacity: "Transparenz: Hintergrund",
@@ -122,11 +137,11 @@ public enum L10n {
             .settingsFooter: "Overlay ein-/ausblenden: ⌥ ⇧ L\nPositive Werte zeigen die Lyrics früher. Songtitel und Interpret werden zur Suche an LRCLIB gesendet.",
             .hotKeyErrorTitle: "Hotkey nicht verfügbar",
             .hotKeyErrorText: "⌥ ⇧ L konnte nicht registriert werden. Möglicherweise verwendet eine andere App diese Tastenkombination. Das Overlay lässt sich weiterhin über das Menü ein- und ausblenden.",
-            .statusWaitingForPlayer: "Warte auf Spotify …",
-            .statusOpenPlayer: "Öffne Spotify und spiele einen Song ab.",
-            .statusAutomationDenied: "Spotify-Zugriff erlauben: Systemeinstellungen → Datenschutz & Sicherheit → Automation.",
-            .statusPlayerError: "Spotify konnte nicht gelesen werden: %@",
-            .statusNoTrack: "Spiele einen Song in Spotify ab.",
+            .statusWaitingForPlayer: "Warte auf Spotify oder Musik …",
+            .statusOpenPlayer: "Öffne Spotify oder Musik und spiele einen Song ab.",
+            .statusAutomationDenied: "Zugriff auf %@ erlauben: Systemeinstellungen → Datenschutz & Sicherheit → Automation.",
+            .statusPlayerError: "%@ konnte nicht gelesen werden: %@",
+            .statusNoTrack: "Spiele einen Song in %@ ab.",
             .statusSearching: "Suche Lyrics …",
             .statusNetworkError: "Lyrics konnten nicht geladen werden. Prüfe deine Internetverbindung.",
             .statusNoLyrics: "Keine Lyrics für diesen Song gefunden.",
@@ -138,22 +153,31 @@ public enum L10n {
 
 /// Status shown in the overlay. Stored typed and rendered at display time so a language switch re-renders it.
 public enum StatusMessage: Equatable, Error {
-    case waitingForPlayer, openPlayer, automationDenied
-    case playerError(String)
-    case noTrack, searching, networkError, noLyrics, instrumental, notSynced
+    case waitingForPlayer, openPlayer
+    case automationDenied(PlayerSource)
+    case playerError(PlayerSource, String)
+    case noTrack(PlayerSource)
+    case searching, networkError, noLyrics, instrumental, notSynced
 
     public func text(language: AppLanguage) -> String {
         switch self {
         case .waitingForPlayer: return L10n.string(.statusWaitingForPlayer, language: language)
         case .openPlayer: return L10n.string(.statusOpenPlayer, language: language)
-        case .automationDenied: return L10n.string(.statusAutomationDenied, language: language)
-        case .playerError(let detail): return L10n.string(.statusPlayerError, detail, language: language)
-        case .noTrack: return L10n.string(.statusNoTrack, language: language)
+        case .automationDenied(let source): return L10n.string(.statusAutomationDenied, source.name(language: language), language: language)
+        case .playerError(let source, let detail): return L10n.string(.statusPlayerError, source.name(language: language), detail, language: language)
+        case .noTrack(let source): return L10n.string(.statusNoTrack, source.name(language: language), language: language)
         case .searching: return L10n.string(.statusSearching, language: language)
         case .networkError: return L10n.string(.statusNetworkError, language: language)
         case .noLyrics: return L10n.string(.statusNoLyrics, language: language)
         case .instrumental: return L10n.string(.statusInstrumental, language: language)
         case .notSynced: return L10n.string(.statusNotSynced, language: language)
         }
+    }
+}
+
+extension PlayerSource {
+    /// The app name as macOS shows it ("Musik" on German systems).
+    public func name(language: AppLanguage) -> String {
+        L10n.string(self == .spotify ? .playerNameSpotify : .playerNameMusic, language: language)
     }
 }

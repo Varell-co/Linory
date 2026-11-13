@@ -1,5 +1,6 @@
 import AppKit
 import LyricsCore
+import os
 
 final class PlayerModel: ObservableObject {
     @Published var track: Track?
@@ -8,7 +9,10 @@ final class PlayerModel: ObservableObject {
     @Published var status: StatusMessage = .waitingForPlayer
     private var generation = 0
     private var pending = false
-    private let queue = DispatchQueue(label: "spotify-reader")
+    private let queue = DispatchQueue(label: "player-reader")
+    private static let players: [MediaPlayer] = [SpotifyPlayer(), MusicPlayer()]
+    private var currentSource: PlayerSource?
+    private let log = Logger(subsystem: LyricsService.subsystem, category: "player")
     private var timer: Timer?
     private let service: LyricsService = {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
@@ -23,48 +27,40 @@ final class PlayerModel: ObservableObject {
     private func poll() {
         guard !pending else { return }
         pending = true
+        let preference = SourcePreference(rawValue: UserDefaults.standard.string(forKey: "source") ?? "") ?? .auto
+        let current = currentSource
         queue.async { [weak self] in
-            let result = Self.readSpotify()
+            let (chosen, result) = Self.read(preference: preference, current: current)
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.pending = false
+                if chosen != self.currentSource {
+                    self.log.info("source \(preference.rawValue, privacy: .public) → \(chosen?.rawValue ?? "none", privacy: .public)")
+                    self.currentSource = chosen
+                }
                 switch result {
                 case .failure(let status): self.clear(status)
-                case .success(let snapshot): self.update(snapshot)
+                case .success(nil): self.clear(chosen.map { .noTrack($0) } ?? .openPlayer)
+                case .success(let snapshot?): self.update(snapshot)
                 }
             }
         }
     }
 
-    private struct Snapshot { let track: Track; let position: Double; let playing: Bool }
-
-    private static func readSpotify() -> Result<Snapshot, StatusMessage> {
-        guard NSRunningApplication.runningApplications(withBundleIdentifier: "com.spotify.client").first != nil else {
-            return .failure(.openPlayer)
+    /// Reads every candidate player that is running (never launching one) and picks per the preference.
+    private static func read(preference: SourcePreference, current: PlayerSource?) -> (PlayerSource?, Result<PlaybackSnapshot?, StatusMessage>) {
+        let candidates = players.filter { preference.source == nil || $0.source == preference.source }
+        var states: [PlayerSource: PlayerState] = [:]
+        var results: [PlayerSource: Result<PlaybackSnapshot?, StatusMessage>] = [:]
+        for player in candidates where player.isRunning {
+            let result = player.read()
+            results[player.source] = result
+            let playing = (try? result.get())??.playing ?? false
+            states[player.source] = PlayerState(running: true, playing: playing)
         }
-        let source = """
-        tell application id "com.spotify.client"
-            if player state is stopped then return {"stopped"}
-            set t to current track
-            return {id of t, name of t, artist of t, album of t, duration of t, player position, (player state is playing)}
-        end tell
-        """
-        var error: NSDictionary?
-        guard let descriptor = NSAppleScript(source: source)?.executeAndReturnError(&error) else {
-            let number = error?[NSAppleScript.errorNumber] as? Int
-            let detail = error?[NSAppleScript.errorMessage] as? String ?? "\(number ?? 0)"
-            return .failure(number == -1743 ? .automationDenied : .playerError(detail))
-        }
-        guard descriptor.numberOfItems >= 7,
-              let id = descriptor.atIndex(1)?.stringValue,
-              let title = descriptor.atIndex(2)?.stringValue,
-              let artist = descriptor.atIndex(3)?.stringValue,
-              let duration = descriptor.atIndex(5), let position = descriptor.atIndex(6) else {
-            return .failure(.noTrack)
-        }
-        let album = descriptor.atIndex(4)?.stringValue ?? ""
-        let track = Track(id: id, title: title, artist: artist, album: album, duration: duration.doubleValue / 1000)
-        return .success(Snapshot(track: track, position: position.doubleValue, playing: descriptor.atIndex(7)?.booleanValue ?? false))
+        guard let chosen = PlayerSelection.choose(preference: preference, states: states, current: current),
+              let result = results[chosen] else { return (nil, .failure(.openPlayer)) }
+        return (chosen, result)
     }
 
     private func clear(_ message: StatusMessage) {
@@ -72,7 +68,7 @@ final class PlayerModel: ObservableObject {
         track = nil; lyrics = nil; clock.reset(); status = message
     }
 
-    private func update(_ snapshot: Snapshot) {
+    private func update(_ snapshot: PlaybackSnapshot) {
         if track != snapshot.track { clock.reset() }
         clock.update(position: snapshot.position, playing: snapshot.playing, duration: snapshot.track.duration, at: Date())
         guard track != snapshot.track else { return }

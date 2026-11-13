@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private let hotKey = HotKey()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        UserDefaults.standard.register(defaults: ["fontSize": 25.0, "opacity": 0.78, "overlayOpacity": 1.0, "offset": 0.0, "overlayWidth": 400.0, "overlayHeight": 240.0, "language": AppLanguage.system.rawValue])
+        UserDefaults.standard.register(defaults: ["fontSize": 25.0, "opacity": 0.78, "overlayOpacity": 1.0, "offset": 0.0, "overlayWidth": 400.0, "overlayHeight": 240.0, "language": AppLanguage.system.rawValue, "source": SourcePreference.auto.rawValue])
         NSApp.setActivationPolicy(.accessory)
         overlay = NSPanel(contentRect: NSRect(x: 0, y: 0, width: UserDefaults.standard.double(forKey: "overlayWidth"), height: UserDefaults.standard.double(forKey: "overlayHeight")), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         overlay.isOpaque = false; overlay.backgroundColor = .clear; overlay.hasShadow = true
@@ -106,6 +106,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             let entry = item(tr(key), #selector(selectCorner(_:))); entry.representedObject = corner; corners.addItem(entry)
         }
         let positionItem = NSMenuItem(title: tr(.position), action: nil, keyEquivalent: ""); positionItem.submenu = corners; menu.addItem(positionItem)
+        let sources = NSMenu()
+        let selected = UserDefaults.standard.string(forKey: "source") ?? SourcePreference.auto.rawValue
+        for (key, preference) in [(L10nKey.sourceAuto, SourcePreference.auto), (.sourceSpotify, .spotify), (.sourceMusic, .music)] {
+            let entry = item(tr(key), #selector(selectSource(_:))); entry.representedObject = preference.rawValue
+            entry.state = preference.rawValue == selected ? .on : .off; sources.addItem(entry)
+        }
+        let sourceItem = NSMenuItem(title: tr(.source), action: nil, keyEquivalent: ""); sourceItem.submenu = sources; menu.addItem(sourceItem)
         menu.addItem(.separator())
         menu.addItem(item(tr(.settingsMenu), #selector(showSettings), key: ","))
         menu.addItem(item(tr(.quit), #selector(quitApp), key: "q"))
@@ -124,6 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
     @objc func toggleVisibility() { if overlay.isVisible { overlay.orderOut(nil) } else { overlay.orderFrontRegardless() } }
     @objc func toggleClick() { clickThrough.toggle(); overlay.ignoresMouseEvents = clickThrough }
+    @objc func selectSource(_ sender: NSMenuItem) { if let value = sender.representedObject as? String { UserDefaults.standard.set(value, forKey: "source") } }
     @objc func selectCorner(_ sender: NSMenuItem) { if let key = sender.representedObject as? String { position(key) } }
     @objc func showSettings() {
         if settings == nil {

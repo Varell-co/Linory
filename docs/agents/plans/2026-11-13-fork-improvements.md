@@ -297,21 +297,21 @@ Dependencies: Phase 2 (uses `StatusMessage`), Phase 3 (overlay rendering path vi
 Dependencies: Phase 4 (uses `Track.album` and `LyricsService`)
 
 **Tasks**:
-- [ ] `LyricsCore/Track.swift`: add `public enum PlayerSource: String, CaseIterable { case spotify, music }` with `bundleID` (`com.spotify.client`, `com.apple.Music`). `Track` gets `source`, and its id is prefixed with the source.
-- [ ] `LyricsCore/PlayerSelection.swift`: add `SourcePreference` (`auto`, `spotify`, `music`) and `choose(preference:states:[PlayerSource: PlayerState(running, playing)], current:)`. A manual preference returns that source if it is running, otherwise nil. Auto keeps `current` if it is playing, else picks the first playing source (Spotify, then Music), else keeps `current` if running, else the first running source, else nil.
-- [ ] `LyricsOverlay/Players.swift`: add `protocol MediaPlayer { var source: PlayerSource { get }; func read() -> Result<PlaybackSnapshot?, PlayerError> }`, where `nil` means stopped. `SpotifyPlayer` is the existing script (duration ms → s). `MusicPlayer` uses `tell application id "com.apple.Music"` and returns `{persistent ID, name, artist, album, duration (s), player position, playing}`. Error -1728 (no readable current track, e.g. radio) maps to `noTrack`. Error -1743 maps to `automationDenied`. `isRunning` uses `NSRunningApplication.runningApplications(withBundleIdentifier:)`, and `read()` is never called when the player is not running.
-- [ ] `PlayerModel.swift`: on each poll, read every running player (in Auto mode) or only the preferred one, build the states, call `PlayerSelection.choose`, and use that snapshot. Log source switches (`player` category).
-- [ ] `StatusMessage`: `openPlayer` text becomes "Open Spotify or Music and play a song." (en/de). `automationDenied` names the source.
-- [ ] `SettingsView.swift`: add a PLAYBACK section with a `Source` picker (`@AppStorage("source")`, default `auto`)
-- [ ] `AppDelegate.swift`: add a `Source ▸` submenu with checkmarks for Auto / Spotify / Apple Music, bound to the same default
-- [ ] `build-app.sh`: change the usage description to "…from Spotify or Music…"
-- [ ] Checks: the `PlayerSelection` matrix (auto with both playing keeps current, auto switches when current pauses and the other plays, manual returns nil when not running, nothing running returns nil) and that Track ids differ across sources for the same raw id
-- [ ] README: Requirements, Features and the Automation paragraph mention Apple Music and the separate permission prompt per player. RELEASE_NOTES gets a new v0.2.0 section listing all features.
+- [x] `LyricsCore/Track.swift`: add `public enum PlayerSource: String, CaseIterable { case spotify, music }` with `bundleID` (`com.spotify.client`, `com.apple.Music`). `Track` gets `source`, and its id is prefixed with the source.
+- [x] `LyricsCore/PlayerSelection.swift`: add `SourcePreference` (`auto`, `spotify`, `music`) and `choose(preference:states:[PlayerSource: PlayerState(running, playing)], current:)`. A manual preference returns that source if it is running, otherwise nil. Auto keeps `current` if it is playing, else picks the first playing source (Spotify, then Music), else keeps `current` if running, else the first running source, else nil.
+- [x] `LyricsOverlay/Players.swift`: add `protocol MediaPlayer { var source: PlayerSource { get }; func read() -> Result<PlaybackSnapshot?, PlayerError> }`, where `nil` means stopped. `SpotifyPlayer` is the existing script (duration ms → s). `MusicPlayer` uses `tell application id "com.apple.Music"` and returns `{persistent ID, name, artist, album, duration (s), player position, playing}`. Error -1728 (no readable current track, e.g. radio) maps to `noTrack`. Error -1743 maps to `automationDenied`. `isRunning` uses `NSRunningApplication.runningApplications(withBundleIdentifier:)`, and `read()` is never called when the player is not running.
+- [x] `PlayerModel.swift`: on each poll, read every running player (in Auto mode) or only the preferred one, build the states, call `PlayerSelection.choose`, and use that snapshot. Log source switches (`player` category).
+- [x] `StatusMessage`: `openPlayer` text becomes "Open Spotify or Music and play a song." (en/de). `automationDenied` names the source.
+- [x] `SettingsView.swift`: add a PLAYBACK section with a `Source` picker (`@AppStorage("source")`, default `auto`)
+- [x] `AppDelegate.swift`: add a `Source ▸` submenu with checkmarks for Auto / Spotify / Apple Music, bound to the same default
+- [x] `build-app.sh`: change the usage description to "…from Spotify or Music…"
+- [x] Checks: the `PlayerSelection` matrix (auto with both playing keeps current, auto switches when current pauses and the other plays, manual returns nil when not running, nothing running returns nil) and that Track ids differ across sources for the same raw id
+- [x] README: Requirements, Features and the Automation paragraph mention Apple Music and the separate permission prompt per player. RELEASE_NOTES gets a new v0.2.0 section listing all features.
 
 **Automated Verification**:
-- [ ] `swift build` succeeds
-- [ ] `swift run LyricsCoreChecks` passes, including the `PlayerSelection` checks
-- [ ] `bash build-app.sh && /usr/libexec/PlistBuddy -c 'Print :NSAppleEventsUsageDescription' "Lyrics Overlay.app/Contents/Info.plist" | grep -q Music`
+- [x] `swift build` succeeds
+- [x] `swift run LyricsCoreChecks` passes, including the `PlayerSelection` checks
+- [x] `bash build-app.sh && /usr/libexec/PlistBuddy -c 'Print :NSAppleEventsUsageDescription' "Lyrics Overlay.app/Contents/Info.plist" | grep -q Music`
 
 **Manual Verification**:
 - [ ] With only Music running and playing, lyrics show after the Automation prompt is allowed. Quitting Music and opening Spotify switches over. With Spotify running and Music closed, Music is never launched.
