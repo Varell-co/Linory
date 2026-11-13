@@ -17,7 +17,7 @@ public enum L10nKey: String, CaseIterable {
     case settingsMenu, quit
     case statusItemDescription, statusItemTooltip
     // Windows and overlay
-    case settingsWindowTitle, openSettingsHelp, overlayPlaceholder
+    case settingsWindowTitle, openSettingsHelp, overlayPlaceholder, tagline, endorsement
     // Settings
     case sectionAppearance, sectionTiming, sectionPlayback, sectionGeneral
     case source, sourceAuto, sourceSpotify, sourceMusic, playerNameSpotify, playerNameMusic
@@ -58,11 +58,13 @@ public enum L10n {
             .bottomRight: "Bottom right",
             .settingsMenu: "Settings…",
             .quit: "Quit",
-            .statusItemDescription: "Lyrics Overlay – Settings",
+            .statusItemDescription: "Linory – Settings",
             .statusItemTooltip: "Open settings · Right-click for menu",
-            .settingsWindowTitle: "Lyrics Overlay – Settings",
+            .settingsWindowTitle: "Linory – Settings",
             .openSettingsHelp: "Open settings",
-            .overlayPlaceholder: "LYRICS OVERLAY",
+            .overlayPlaceholder: "Linory",
+            .tagline: "Lyrics in your flow.",
+            .endorsement: "A Varell product",
             .sectionAppearance: "APPEARANCE",
             .sectionTiming: "TIMING",
             .sectionPlayback: "PLAYBACK",
@@ -114,11 +116,13 @@ public enum L10n {
             .bottomRight: "Unten rechts",
             .settingsMenu: "Einstellungen …",
             .quit: "Beenden",
-            .statusItemDescription: "Lyrics Overlay – Einstellungen",
+            .statusItemDescription: "Linory – Einstellungen",
             .statusItemTooltip: "Einstellungen öffnen · Rechtsklick für Menü",
-            .settingsWindowTitle: "Lyrics Overlay – Einstellungen",
+            .settingsWindowTitle: "Linory – Einstellungen",
             .openSettingsHelp: "Einstellungen öffnen",
-            .overlayPlaceholder: "LYRICS OVERLAY",
+            .overlayPlaceholder: "Linory",
+            .tagline: "Lyrics in deinem Flow.",
+            .endorsement: "Ein Produkt von Varell",
             .sectionAppearance: "DARSTELLUNG",
             .sectionTiming: "TIMING",
             .sectionPlayback: "WIEDERGABE",

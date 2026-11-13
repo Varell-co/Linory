@@ -18,7 +18,7 @@ final class PlayerModel: ObservableObject {
     private var timer: Timer?
     private let service: LyricsService = {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
-        return LyricsService(userAgent: "LyricsOverlay/\(version) (https://github.com/MikeLeonFox/LyricsOverlay)")
+        return LyricsService(userAgent: "Linory/\(version) (https://github.com/MikeLeonFox/LyricsOverlay)")
     }()
 
     func start() {

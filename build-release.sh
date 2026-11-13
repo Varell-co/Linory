@@ -16,7 +16,7 @@ ARM_DIR="$(swift build -c release --triple arm64-apple-macosx13.0 --product Lyri
 INTEL_DIR="$(swift build -c release --triple x86_64-apple-macosx13.0 --product LyricsOverlay --scratch-path .build/release-x86_64 --show-bin-path)"
 
 bash build-app.sh
-APP="$PWD/Lyrics Overlay.app"
+APP="$PWD/Linory.app"
 lipo -create "$ARM_DIR/LyricsOverlay" "$INTEL_DIR/LyricsOverlay" -output "$APP/Contents/MacOS/LyricsOverlay"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
@@ -25,7 +25,7 @@ codesign --force --deep --sign - "$APP"
 codesign --verify --verbose=2 "$APP"
 for ARCH in arm64 x86_64; do lipo "$APP/Contents/MacOS/LyricsOverlay" -verify_arch "$ARCH"; done
 mkdir -p dist
-ARCHIVE="$PWD/dist/Lyrics-Overlay-$VERSION-universal.zip"
+ARCHIVE="$PWD/dist/Linory-$VERSION-universal.zip"
 rm -f "$ARCHIVE"
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$ARCHIVE"
 echo "Created $ARCHIVE (ad-hoc signed, not notarized)"

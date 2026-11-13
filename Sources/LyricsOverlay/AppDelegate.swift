@@ -59,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     /// Menu titles are rebuilt in menuNeedsUpdate; these are the strings that stay on screen.
     private func applyLanguage() {
         statusItem?.button?.toolTip = tr(.statusItemTooltip)
-        statusItem?.button?.image?.accessibilityDescription = tr(.statusItemDescription)
+        statusItem?.button?.setAccessibilityLabel(tr(.statusItemDescription))
         settings?.title = tr(.settingsWindowTitle)
     }
     private func showHotKeyError() {
@@ -97,7 +97,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
     func buildMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "music.note.list", accessibilityDescription: tr(.statusItemDescription))
+        statusItem.button?.image = Brand.menuBarImage
+        statusItem.button?.setAccessibilityLabel(tr(.statusItemDescription))
         statusItem.button?.toolTip = tr(.statusItemTooltip)
         statusItem.button?.target = self
         statusItem.button?.action = #selector(statusClicked(_:))
@@ -109,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func menuNeedsUpdate(_ menu: NSMenu) {
         guard menu === statusMenu else { return }
         menu.removeAllItems()
-        let title = NSMenuItem(title: "Lyrics Overlay", action: nil, keyEquivalent: ""); title.isEnabled = false; menu.addItem(title)
+        let title = NSMenuItem(title: Brand.name, action: nil, keyEquivalent: ""); title.isEnabled = false; menu.addItem(title)
         menu.addItem(.separator())
         menu.addItem(item(tr(overlay.isVisible ? .hideOverlay : .showOverlay), #selector(toggleVisibility)))
         let click = item(tr(.clickThrough), #selector(toggleClick)); click.state = clickThrough ? .on : .off; menu.addItem(click)

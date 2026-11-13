@@ -23,7 +23,13 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Lyrics Overlay").font(.title2.bold())
+            HStack(spacing: 10) {
+                LinorySymbol().frame(width: 40, height: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Brand.name).font(.title2.weight(.semibold))
+                    Text(t(.tagline)).font(.callout).foregroundStyle(.secondary)
+                }
+            }
             section(.sectionAppearance)
             control(t(.fontSize), value: $fontSize, range: 14...44, suffix: " pt")
             control(t(.overlayOpacity), value: $overlayOpacity, range: 0.15...1, multiplier: 100, suffix: t(.opacitySuffix))
@@ -58,6 +64,7 @@ struct SettingsView: View {
             }
             Text(t(.settingsFooter))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(t(.endorsement)).font(.caption2).foregroundStyle(.tertiary)
         }
         .padding(24).frame(width: 420)
         .onChange(of: width) { _ in resize() }

@@ -354,6 +354,7 @@ During implementation, document user feedback, problems, and decisions here.
 - Phase 4: `/api/search` is called with title and artist only (as before); album and duration go only to `/api/get`. Searching wording changed to "Searching for lyrics…" / "No lyrics found" since plain lyrics now count.
 - Phase 5: `StatusMessage` cases carry the `PlayerSource` (`automationDenied(source)`, `playerError(source, detail)`, `noTrack(source)`). German uses the app name "Musik". Both scripts also check `application id … is running` inside AppleScript, as a guard against the race where the app quits between the `NSRunningApplication` check and the script.
 - Phase 6: a manual show (hotkey/menu/reopen) while auto-hidden counts as a fresh start of the 3 s grace period; otherwise the toggle would have no visible effect when nothing plays.
+- After Phase 6 (user request): applied the Linory brand kit (`Linory_Brand_Identity_v1.zip`). App, bundle, ZIP and UI are named Linory; icon from `Branding/Linory.icns`; menu-bar glyph and overlay symbol are drawn in code from the kit's SVG paths (`Brand.swift`); overlay uses Ink background, 20 pt corners, a semibold active line on a soft wave-blue band, and respects Reduce Motion. Kept: bundle ID `io.github.mikeleonfox.lyricsoverlay`, SwiftPM product/executable `LyricsOverlay`, repo name.
 
 ## References
 

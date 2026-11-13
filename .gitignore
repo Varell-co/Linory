@@ -3,6 +3,7 @@
 .swiftpm/
 
 # Locally built application
+Linory.app/
 Lyrics Overlay.app/
 dist/
 

@@ -26,16 +26,17 @@ jobs:
       - name: Verify packaged app
         run: |
           mkdir -p "$RUNNER_TEMP/verify"
-          ditto -x -k "dist/Lyrics-Overlay-${{ env.VERSION }}-universal.zip" "$RUNNER_TEMP/verify"
-          APP="$RUNNER_TEMP/verify/Lyrics Overlay.app"
+          ditto -x -k "dist/Linory-${{ env.VERSION }}-universal.zip" "$RUNNER_TEMP/verify"
+          APP="$RUNNER_TEMP/verify/Linory.app"
           plutil -lint "$APP/Contents/Info.plist"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" = "${{ env.VERSION }}"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" = "io.github.mikeleonfox.lyricsoverlay"
+          test -f "$APP/Contents/Resources/Linory.icns"
           codesign --verify --verbose=2 "$APP"
           for ARCH in arm64 x86_64; do lipo "$APP/Contents/MacOS/LyricsOverlay" -verify_arch "$ARCH"; done
       - name: Upload preview archive
         uses: actions/upload-artifact@v4
         with:
-          name: Lyrics-Overlay-${{ env.VERSION }}-universal
-          path: dist/Lyrics-Overlay-${{ env.VERSION }}-universal.zip
+          name: Linory-${{ env.VERSION }}-universal
+          path: dist/Linory-${{ env.VERSION }}-universal.zip
           if-no-files-found: error

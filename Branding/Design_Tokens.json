@@ -1,0 +1,86 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "brand": "Linory",
+  "version": "1.0.0",
+  "publisher": "Varell",
+  "color": {
+    "ink": {
+      "$value": "#14161B",
+      "$type": "color"
+    },
+    "graphite": {
+      "$value": "#303640",
+      "$type": "color"
+    },
+    "silver": {
+      "$value": "#BCC5D2",
+      "$type": "color"
+    },
+    "mist": {
+      "$value": "#F2F4F7",
+      "$type": "color"
+    },
+    "accent": {
+      "$value": "#B1C5E5",
+      "$type": "color"
+    },
+    "waveBlue": {
+      "$value": "#4385EF",
+      "$type": "color"
+    },
+    "waveMid": {
+      "$value": "#76A3EE",
+      "$type": "color"
+    },
+    "waveLight": {
+      "$value": "#AFC9F1",
+      "$type": "color"
+    },
+    "waveDeep": {
+      "$value": "#557FCE",
+      "$type": "color"
+    },
+    "textSecondary": {
+      "$value": "#657082",
+      "$type": "color"
+    },
+    "border": {
+      "$value": "#D9E1EC",
+      "$type": "color"
+    }
+  },
+  "font": {
+    "ui": {
+      "$value": "SF Pro (system font on macOS)",
+      "$type": "fontFamily"
+    },
+    "marketing": {
+      "$value": "Inter, Inter Display, sans-serif",
+      "$type": "fontFamily"
+    }
+  },
+  "radius": {
+    "panel": {
+      "$value": "20px",
+      "$type": "dimension"
+    },
+    "appIcon": {
+      "$value": "~22% of tile width",
+      "$type": "string"
+    }
+  },
+  "motion": {
+    "lyricTransition": {
+      "$value": "180ms–260ms",
+      "$type": "string"
+    },
+    "reducedMotion": {
+      "$value": "No transform, blur, or long fades",
+      "$type": "string"
+    }
+  },
+  "brandVoice": {
+    "tagline": "Lyrics in your flow.",
+    "descriptor": "Floating synced lyrics for macOS."
+  }
+}

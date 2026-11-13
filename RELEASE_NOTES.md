@@ -1,6 +1,6 @@
-# Lyrics Overlay v0.2.0
+# Linory v0.2.0
 
-First release of the [MikeLeonFox/LyricsOverlay](https://github.com/MikeLeonFox/LyricsOverlay) fork. It uses a new bundle ID (`io.github.mikeleonfox.lyricsoverlay`), so settings from v0.1.0 are not carried over and macOS asks for Automation permission again.
+First release of the [MikeLeonFox/LyricsOverlay](https://github.com/MikeLeonFox/LyricsOverlay) fork. Lyrics Overlay is now **Linory** (new name, app icon and menu-bar glyph). It uses a new bundle ID (`io.github.mikeleonfox.lyricsoverlay`), so settings from v0.1.0 are not carried over and macOS asks for Automation permission again.
 
 ## New
 
@@ -15,7 +15,7 @@ First release of the [MikeLeonFox/LyricsOverlay](https://github.com/MikeLeonFox/
 
 ## Download
 
-Download `Lyrics-Overlay-0.2.0-universal.zip`, extract it and open `Lyrics Overlay.app`. **This preview is ad-hoc signed, not signed with an Apple Developer ID, and not notarized.** Gatekeeper may prevent it from opening. Only run it if you trust the source; consult [Apple's instructions](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac) if macOS blocks it. Do not disable Gatekeeper globally.
+Download `Linory-0.2.0-universal.zip`, extract it and open `Linory.app`. **This preview is ad-hoc signed, not signed with an Apple Developer ID, and not notarized.** Gatekeeper may prevent it from opening. Only run it if you trust the source; consult [Apple's instructions](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac) if macOS blocks it. Do not disable Gatekeeper globally.
 
 Song title, artist, album and duration are sent to LRCLIB to find lyrics. See the README for privacy details.
 

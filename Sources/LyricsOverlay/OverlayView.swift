@@ -9,6 +9,7 @@ struct OverlayView: View {
     @AppStorage("overlayOpacity") private var overlayOpacity = 1.0
     @AppStorage("offset") private var offset = 0.0
     @AppStorage("language") private var languageSetting = AppLanguage.system.rawValue
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var language: AppLanguage { (AppLanguage(rawValue: languageSetting) ?? .system).resolved(preferredLanguages: Locale.preferredLanguages) }
 
     private var lines: [LyricLine] { model.lyrics?.lines ?? [] }
@@ -21,7 +22,8 @@ struct OverlayView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Button(action: showSettings) {
-                    Image(systemName: "music.note")
+                    LinorySymbol()
+                        .frame(width: 22, height: 17)
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
@@ -47,20 +49,26 @@ struct OverlayView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color.black.opacity(opacity), in: RoundedRectangle(cornerRadius: 16))
+        .background(Brand.ink.opacity(opacity), in: RoundedRectangle(cornerRadius: Brand.panelCornerRadius))
+        .overlay(RoundedRectangle(cornerRadius: Brand.panelCornerRadius).strokeBorder(.white.opacity(0.1 * opacity)))
         .opacity(overlayOpacity)
     }
 
     private func lyrics(active: Int?) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             ForEach(visibleLines(active: active), id: \.0) { index, line in
+                let isActive = index == active
                 Text(line.text.isEmpty ? "♪" : line.text)
-                    .font(.system(size: index == active ? fontSize : fontSize * 0.8, weight: index == active ? .bold : .medium))
-                    .foregroundStyle(.white.opacity(index == active ? 1 : 0.4))
+                    .font(.system(size: isActive ? fontSize : fontSize * 0.8, weight: isActive ? .semibold : .regular))
+                    .foregroundStyle(.white.opacity(isActive ? 1 : 0.5))
                     .lineLimit(2)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    // Soft wave-blue band behind the active line, as in the brand concept.
+                    .background(Brand.waveBlue.opacity(isActive ? 0.3 : 0), in: RoundedRectangle(cornerRadius: 10))
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: active)
+        .padding(.horizontal, -10)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: active)
     }
 }
