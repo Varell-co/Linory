@@ -13,6 +13,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Read version
+        run: echo "VERSION=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_ENV"
       - name: Build
         run: swift build
       - name: Run core checks
@@ -20,19 +22,20 @@ jobs:
       - name: Build app bundle
         run: bash build-app.sh
       - name: Build universal preview archive
-        run: bash build-release.sh 0.1.0
+        run: bash build-release.sh "${{ env.VERSION }}"
       - name: Verify packaged app
         run: |
           mkdir -p "$RUNNER_TEMP/verify"
-          ditto -x -k dist/Lyrics-Overlay-0.1.0-universal.zip "$RUNNER_TEMP/verify"
+          ditto -x -k "dist/Lyrics-Overlay-${{ env.VERSION }}-universal.zip" "$RUNNER_TEMP/verify"
           APP="$RUNNER_TEMP/verify/Lyrics Overlay.app"
           plutil -lint "$APP/Contents/Info.plist"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" = "0.1.0"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" = "${{ env.VERSION }}"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" = "io.github.mikeleonfox.lyricsoverlay"
           codesign --verify --verbose=2 "$APP"
-          lipo "$APP/Contents/MacOS/LyricsOverlay" -verify_arch arm64 x86_64
+          for ARCH in arm64 x86_64; do lipo "$APP/Contents/MacOS/LyricsOverlay" -verify_arch "$ARCH"; done
       - name: Upload preview archive
         uses: actions/upload-artifact@v4
         with:
-          name: Lyrics-Overlay-0.1.0-universal
-          path: dist/Lyrics-Overlay-0.1.0-universal.zip
+          name: Lyrics-Overlay-${{ env.VERSION }}-universal
+          path: dist/Lyrics-Overlay-${{ env.VERSION }}-universal.zip
           if-no-files-found: error

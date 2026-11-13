@@ -1,0 +1,54 @@
+import SwiftUI
+import LyricsCore
+
+struct OverlayView: View {
+    @ObservedObject var model: PlayerModel
+    var showSettings: () -> Void
+    @AppStorage("fontSize") private var fontSize = 25.0
+    @AppStorage("opacity") private var opacity = 0.78
+    @AppStorage("overlayOpacity") private var overlayOpacity = 1.0
+    @AppStorage("offset") private var offset = 0.0
+
+    private var active: Int? { LRC.currentIndex(model.lines, at: model.position + offset) }
+    private var visibleLines: [(Int, LyricLine)] {
+        guard !model.lines.isEmpty else { return [] }
+        let start = max(0, (active ?? 0) - 1)
+        return Array(model.lines.enumerated().dropFirst(start).prefix(active == nil || active == 0 ? 3 : 4))
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Button(action: showSettings) {
+                    Image(systemName: "music.note")
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Einstellungen öffnen")
+                Text(model.track.map { "\($0.title)  ·  \($0.artist)" } ?? "LYRICS OVERLAY")
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.62))
+            if model.lines.isEmpty {
+                Text(model.status).font(.system(size: 15, weight: .medium)).foregroundStyle(.white.opacity(0.8))
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(visibleLines, id: \.0) { index, line in
+                        Text(line.text.isEmpty ? "♪" : line.text)
+                            .font(.system(size: index == active ? fontSize : fontSize * 0.8, weight: index == active ? .bold : .medium))
+                            .foregroundStyle(.white.opacity(index == active ? 1 : 0.4))
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.2), value: active)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.black.opacity(opacity), in: RoundedRectangle(cornerRadius: 16))
+        .opacity(overlayOpacity)
+    }
+}

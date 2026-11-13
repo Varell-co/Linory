@@ -1,5 +1,7 @@
 # Lyrics Overlay
 
+> Fork of [JulianRudrich/LyricsOverlay](https://github.com/JulianRudrich/LyricsOverlay). Generally useful changes are offered back upstream.
+
 A small native macOS app that shows time-synchronized lyrics for the currently playing song in Spotify. The overlay floats above other windows, highlights the current line, and shows nearby lines so you can follow along while working.
 
 > **Early prototype:** built and tested on one Mac. Contributions and reports from other setups are welcome, but installation, macOS version support, and Spotify integration have not yet been widely tested.
@@ -58,8 +60,8 @@ LRCLIB is a third-party service, and its availability and policies may change. U
 ```sh
 swift build
 swift run LyricsCoreChecks
-# Create an ad-hoc signed universal ZIP in dist/:
-bash build-release.sh 0.1.0
+# Create an ad-hoc signed universal ZIP in dist/ (version defaults to the VERSION file):
+bash build-release.sh
 ```
 
 The checks cover LRC parsing and conservative track matching. They do not replace an end-to-end test with Spotify: verify the automation prompt, loading lyrics, pausing, seeking, changing tracks, the overlay controls, and the global shortcut. XCTest is not available in every Command Line Tools installation, so the current checks use a standalone executable.
