@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="Branding/README/Linory_Monochrome_White.png">
-    <img src="Branding/README/Linory_Monochrome_Ink.png" alt="Linory" width="250">
+    <source media="(prefers-color-scheme: dark)" srcset="Branding/Linory_Horizontal_Dark.png">
+    <img src="Branding/Linory_Horizontal_Light.png" alt="Linory" width="250">
   </picture>
 </p>
 
