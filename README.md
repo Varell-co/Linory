@@ -33,8 +33,6 @@ Follow the current line as words brighten with playback. Keep the next lines nea
 
 **Make room for your style.** Adjust type, size, opacity and lyric timing. Choose English or German, and optionally launch at login.
 
-<sub>AI-generated product visuals based on Linory’s current interface, using original demo lyrics. [About the visuals](Branding/README/VISUALS.md).</sub>
-
 ### Get Linory
 
 Download the latest ZIP from [Releases](https://github.com/MikeLeonFox/LyricsOverlay/releases), extract it, and open `Linory.app`. Play a song and allow macOS Automation access to your player when prompted. No player login or API key is needed.
