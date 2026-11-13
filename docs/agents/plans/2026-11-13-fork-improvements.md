@@ -254,15 +254,15 @@ Dependencies: Phase 1
 Remove the up-to-0.8 s highlight lag by extrapolating the position between polls.
 
 **Tasks**:
-- [ ] `LyricsCore/PlaybackClock.swift`: add `public struct PlaybackClock` with `anchorPosition`, `anchorDate`, `playing`, `duration`, `func position(at now: Date) -> Double` (playing: anchor + elapsed, clamped to `duration`. Paused: anchor), and `mutating func update(position:playing:duration:at:)`. While playing on the same track, a new reading that is less than 0.3 s behind the predicted position keeps the prediction, and anything else re-anchors. `reset()` is used on track change.
-- [ ] `PlayerModel.swift`: replace `@Published position` with `@Published clock: PlaybackClock`, update it on each poll, and reset it on track change and on `clear`
-- [ ] `OverlayView.swift`: wrap the lyrics stack in `TimelineView(.animation(minimumInterval: 0.05, paused: !model.clock.playing))` and compute `active` from `model.clock.position(at: context.date) + offset`
-- [ ] Checks: elapsed time advances the position while playing, a paused clock is frozen, the position clamps to the duration, a reading 0.2 s behind is ignored, a reading 2 s behind (seek) re-anchors, a reading ahead re-anchors, and `reset` zeroes the clock
-- [ ] README: drop any wording implying the lag. No other doc change is needed.
+- [x] `LyricsCore/PlaybackClock.swift`: add `public struct PlaybackClock` with `anchorPosition`, `anchorDate`, `playing`, `duration`, `func position(at now: Date) -> Double` (playing: anchor + elapsed, clamped to `duration`. Paused: anchor), and `mutating func update(position:playing:duration:at:)`. While playing on the same track, a new reading that is less than 0.3 s behind the predicted position keeps the prediction, and anything else re-anchors. `reset()` is used on track change.
+- [x] `PlayerModel.swift`: replace `@Published position` with `@Published clock: PlaybackClock`, update it on each poll, and reset it on track change and on `clear`
+- [x] `OverlayView.swift`: wrap the lyrics stack in `TimelineView(.animation(minimumInterval: 0.05, paused: !model.clock.playing))` and compute `active` from `model.clock.position(at: context.date) + offset`
+- [x] Checks: elapsed time advances the position while playing, a paused clock is frozen, the position clamps to the duration, a reading 0.2 s behind is ignored, a reading 2 s behind (seek) re-anchors, a reading ahead re-anchors, and `reset` zeroes the clock
+- [x] README: drop any wording implying the lag. No other doc change is needed.
 
 **Automated Verification**:
-- [ ] `swift build` succeeds
-- [ ] `swift run LyricsCoreChecks` passes, including the `PlaybackClock` checks
+- [x] `swift build` succeeds
+- [x] `swift run LyricsCoreChecks` passes, including the `PlaybackClock` checks
 
 **Manual Verification**:
 - [ ] With a well-synced song, the highlight changes on the beat with no visible ~1 s lag. Pausing freezes it, and seeking jumps to the right line within one poll.

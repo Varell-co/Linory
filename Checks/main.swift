@@ -43,7 +43,35 @@ func checkLocalization() {
     precondition(StatusMessage.noLyrics.text(language: .de) != StatusMessage.noLyrics.text(language: .en))
 }
 
+func checkPlaybackClock() {
+    let t0 = Date(timeIntervalSince1970: 1_000)
+    var clock = PlaybackClock()
+    clock.update(position: 10, playing: true, duration: 100, at: t0)
+    precondition(abs(clock.position(at: t0.addingTimeInterval(0.5)) - 10.5) < 0.001, "advances while playing")
+    precondition(clock.position(at: t0.addingTimeInterval(200)) == 100, "clamps to duration")
+
+    var jitter = clock
+    jitter.update(position: 10.6, playing: true, duration: 100, at: t0.addingTimeInterval(0.8)) // predicted 10.8
+    precondition(abs(jitter.position(at: t0.addingTimeInterval(0.8)) - 10.8) < 0.001, "0.2 s behind is ignored")
+
+    var seekBack = clock
+    seekBack.update(position: 8.8, playing: true, duration: 100, at: t0.addingTimeInterval(0.8))
+    precondition(abs(seekBack.position(at: t0.addingTimeInterval(0.8)) - 8.8) < 0.001, "2 s behind re-anchors")
+
+    var ahead = clock
+    ahead.update(position: 11.0, playing: true, duration: 100, at: t0.addingTimeInterval(0.8))
+    precondition(abs(ahead.position(at: t0.addingTimeInterval(0.8)) - 11.0) < 0.001, "ahead re-anchors")
+
+    var paused = clock
+    paused.update(position: 12, playing: false, duration: 100, at: t0.addingTimeInterval(2))
+    precondition(paused.position(at: t0.addingTimeInterval(60)) == 12, "paused clock is frozen")
+
+    clock.reset()
+    precondition(clock.position(at: t0) == 0 && !clock.playing, "reset zeroes the clock")
+}
+
 checkParsing()
 try checkMatching()
 checkLocalization()
+checkPlaybackClock()
 print("LyricsCore checks passed")

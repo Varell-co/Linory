@@ -4,9 +4,8 @@ import LyricsCore
 final class PlayerModel: ObservableObject {
     @Published var track: Track?
     @Published var lines: [LyricLine] = []
-    @Published var position: Double = 0
+    @Published var clock = PlaybackClock()
     @Published var status: StatusMessage = .waitingForPlayer
-    @Published var playing = false
     private var generation = 0
     private var pending = false
     private let queue = DispatchQueue(label: "spotify-reader")
@@ -69,12 +68,12 @@ final class PlayerModel: ObservableObject {
 
     private func clear(_ message: StatusMessage) {
         if track != nil { generation += 1 }
-        track = nil; lines = []; position = 0; playing = false; status = message
+        track = nil; lines = []; clock.reset(); status = message
     }
 
     private func update(_ snapshot: Snapshot) {
-        position = snapshot.position
-        playing = snapshot.playing
+        if track != snapshot.track { clock.reset() }
+        clock.update(position: snapshot.position, playing: snapshot.playing, duration: snapshot.track.duration, at: Date())
         guard track != snapshot.track else { return }
         track = snapshot.track
         lines = []
