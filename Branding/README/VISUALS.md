@@ -1,19 +1,13 @@
 # README visuals
 
-The app interfaces are macOS window captures of the repository's actual `OverlayView`, `MenuPanel` and `SettingsView` in `Sources/Linory/`, captured on November 13, 2026. They are not AI-generated interfaces or the identity kit's concept UI.
+The README uses three fully AI-generated, screen-focused product visuals: `screen-hero.png`, `screen-controls.png` and `screen-settings.png`. They show the app prominently on a blue desktop, without laptop hardware or surrounding marketing captions.
 
-The captures use a temporary native host, English, dark appearance, version 0.2.0 and the default 400 × 240 overlay. The host seeds `PlayerModel` without starting player polling or making lyrics requests. “A little closer” by “Linory Sessions” and its five lines are original demonstration content, not a commercial recording or an LRCLIB result. Cover art uses the app's real placeholder.
+The current native app captures were supplied as visual references. The generated images follow the overlay, menu and General settings layouts, but are promotional illustrations rather than pixel-exact screenshots. Glass, spacing, icons and control colors can differ from the running app. System appearance also varies with macOS, wallpaper and accessibility settings.
 
-The current menu includes the Now Playing header, Show overlay, Click-through, Position, Source, Settings and Quit. It is captured with both disclosure sections collapsed. Settings shows General with optional switches off.
+The menu reference includes Now Playing, Show overlay, Click-through, Position, Source, Settings and Quit, with both disclosure sections collapsed. The settings reference shows General, version 0.2.0, Auto player selection, English and optional switches off.
 
-The MacBook, desktop wallpaper and surrounding layouts are vector illustrations. The SVG sources embed the native captures without redrawing their controls or text. The PNG exports are used by the README for consistent GitHub rendering. macOS materials vary with the OS version, appearance, wallpaper and accessibility settings.
+“A little closer” by “Linory Sessions” and its five lines are original demonstration content, not a commercial recording or an LRCLIB result. Cover art uses the app’s music-note placeholder. `native-overlay.png`, `native-menu.png` and `native-settings.png` retain the native reference captures from November 13, 2026.
 
-`native-overlay.png`, `native-menu.png` and `native-settings.png` retain the original window captures. To update the promotional layouts, replace the embedded image data in the corresponding SVG with a new native capture, preserving its aspect ratio, then export with:
+The header uses transparent monochrome PNG exports of the original brand-kit vector paths: Ink for light GitHub themes and White for dark themes. The accompanying SVGs preserve the two-ribbon symbol and outlined wordmark, with tighter horizontal spacing. These are deterministic logo exports, not generated replacement marks.
 
-```sh
-rsvg-convert Branding/README/macbook.svg -o Branding/README/macbook.png
-rsvg-convert Branding/README/overlay-and-menu.svg -o Branding/README/overlay-and-menu.png
-rsvg-convert Branding/README/settings.svg -o Branding/README/settings.png
-```
-
-Brand colors and the existing wordmark come from Linory Brand Identity v1. The layout follows the restrained neutral surfaces and typography of [Varell](https://varell.co).
+The visual palette follows Linory Brand Identity v1: Mist, Ink and pale blue. The layout follows the restrained presentation of [Varell](https://varell.co).
