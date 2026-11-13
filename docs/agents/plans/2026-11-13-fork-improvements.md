@@ -219,7 +219,7 @@ Create the fork, set the new identity and version, and split `main.swift` into f
 - [x] `/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "Lyrics Overlay.app/Contents/Info.plist"` prints `io.github.mikeleonfox.lyricsoverlay`
 - [x] `bash build-release.sh` (no argument) creates `dist/Lyrics-Overlay-0.2.0-universal.zip`
 - [x] `wc -l Sources/LyricsOverlay/main.swift` reports ≤ 10 lines
-- [ ] After pushing the branch, the CI run on GitHub is green (`gh run list --branch fork-improvements --limit 1` shows `success`)
+- [x] After pushing the branch, the CI run on GitHub is green (`gh run list --branch fork-improvements --limit 1` shows `success`)
 
 ### Phase 2: English/German localization with language picker
 
@@ -337,7 +337,7 @@ Dependencies: Phase 2 (L10n), Phase 5 (playing state from the selected player)
 **Automated Verification**:
 - [x] `swift build` succeeds
 - [x] `swift run LyricsCoreChecks` passes, including the `VisibilityPolicy` checks
-- [ ] `bash build-release.sh` succeeds and the CI run on `fork-improvements` is green
+- [x] `bash build-release.sh` succeeds and the CI run on `fork-improvements` is green
 
 **Manual Verification**:
 - [ ] With auto-hide on, pausing hides the overlay after about 3 s and resuming shows it. After hiding with ⌥⇧L, resuming playback does not show it.
