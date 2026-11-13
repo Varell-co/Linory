@@ -155,6 +155,22 @@ func checkPlayerSelection() {
     precondition(a.id != b.id, "track ids differ across sources")
 }
 
+func checkVisibilityPolicy() {
+    let now = Date(timeIntervalSince1970: 100)
+    func show(userHidden: Bool = false, autoHide: Bool = true, playing: Bool = false, hasTrack: Bool = true, stoppedAgo: Double?) -> Bool {
+        VisibilityPolicy.shouldShow(userHidden: userHidden, autoHide: autoHide, playing: playing, hasTrack: hasTrack,
+                                    notPlayingSince: stoppedAgo.map { now.addingTimeInterval(-$0) }, now: now)
+    }
+    precondition(!show(userHidden: true, autoHide: false, playing: true, stoppedAgo: nil), "userHidden always hides")
+    precondition(!show(userHidden: true, playing: true, stoppedAgo: nil), "userHidden wins over auto-show")
+    precondition(show(autoHide: false, stoppedAgo: 100), "auto-hide off always shows")
+    precondition(show(playing: true, stoppedAgo: nil), "shows while playing")
+    precondition(show(stoppedAgo: 2), "still shows 2 s after stopping")
+    precondition(!show(stoppedAgo: 4), "hides 4 s after stopping")
+    precondition(!show(hasTrack: false, stoppedAgo: 4), "hides with no track after grace")
+    precondition(!show(playing: true, hasTrack: false, stoppedAgo: 4), "playing without a track is not playing")
+}
+
 checkParsing()
 try checkMatching()
 checkLocalization()
@@ -164,4 +180,5 @@ try checkGetResponse()
 checkPlainEstimate()
 checkCache()
 checkPlayerSelection()
+checkVisibilityPolicy()
 print("LyricsCore checks passed")

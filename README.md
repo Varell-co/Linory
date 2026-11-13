@@ -51,6 +51,9 @@ The build script creates a locally ad-hoc-signed app, not a Developer ID-signed 
 - Set background opacity to 0% for floating text. Positive timing offsets show lyrics earlier.
 - The interface follows the macOS language (English or German, English otherwise). Override it under **Settings → General → Language**; the change applies immediately.
 - If the global shortcut is already registered by another app, a warning is shown; the menu can still toggle visibility.
+- Click-through is remembered across relaunches. Reopening the app from Finder or the Dock turns it off again.
+- **Auto-hide when nothing is playing** (Settings → Playback, off by default) hides the overlay 3 seconds after playback stops and shows it again when music resumes. Hiding it yourself with the shortcut or menu always wins.
+- **Launch at login** (Settings → General) registers the app with macOS Login Items. It only works from the bundled `Lyrics Overlay.app`, not from `swift run`. If you move the app after enabling it, turn the option off and on again. If macOS needs your approval, Settings shows a link to System Settings.
 
 ## Privacy and third-party services
 

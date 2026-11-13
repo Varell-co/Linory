@@ -7,6 +7,8 @@ final class PlayerModel: ObservableObject {
     @Published var lyrics: LoadedLyrics?
     @Published var clock = PlaybackClock()
     @Published var status: StatusMessage = .waitingForPlayer
+    /// Starts at launch, so auto-hide also waits the grace period before hiding an idle overlay.
+    @Published var notPlayingSince: Date? = Date()
     private var generation = 0
     private var pending = false
     private let queue = DispatchQueue(label: "player-reader")
@@ -66,11 +68,13 @@ final class PlayerModel: ObservableObject {
     private func clear(_ message: StatusMessage) {
         if track != nil { generation += 1 }
         track = nil; lyrics = nil; clock.reset(); status = message
+        if notPlayingSince == nil { notPlayingSince = Date() }
     }
 
     private func update(_ snapshot: PlaybackSnapshot) {
         if track != snapshot.track { clock.reset() }
         clock.update(position: snapshot.position, playing: snapshot.playing, duration: snapshot.track.duration, at: Date())
+        if snapshot.playing { notPlayingSince = nil } else if notPlayingSince == nil { notPlayingSince = Date() }
         guard track != snapshot.track else { return }
         track = snapshot.track
         lyrics = nil

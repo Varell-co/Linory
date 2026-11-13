@@ -322,21 +322,21 @@ Dependencies: Phase 4 (uses `Track.album` and `LyricsService`)
 Dependencies: Phase 2 (L10n), Phase 5 (playing state from the selected player)
 
 **Tasks**:
-- [ ] `LyricsCore/VisibilityPolicy.swift`: `shouldShow(userHidden:autoHide:playing:hasTrack:notPlayingSince: Date?, now:)` returns `!userHidden && (!autoHide || (hasTrack && playing) || notPlayingSince.map { now.timeIntervalSince($0) < 3 } ?? false)`. At launch, `notPlayingSince` starts as the launch time, so auto-hide also waits 3 s before hiding an idle overlay.
-- [ ] `AppDelegate.swift`: track `userHidden` (set by the hotkey or menu toggle, cleared when the user shows it again or reopens the app), observe `model` changes (Combine `objectWillChange` or a 0.8 s tick), and order the overlay in or out per the policy. `toggleVisibility` flips `userHidden`, and the menu title reflects the actual visibility.
-- [ ] `PlayerModel.swift`: publish `notPlayingSince: Date?`, set when playback stops or there's no track and cleared when playing
-- [ ] `AppDelegate.swift`: persist `clickThrough` under the `"clickThrough"` key (default false). Apply it at launch to `overlay.ignoresMouseEvents` and `clickItem.state`. `applicationShouldHandleReopen` also stores `false`.
-- [ ] `LyricsOverlay/LoginItem.swift`: `LoginItem.isEnabled` (`SMAppService.mainApp.status == .enabled`), `requiresApproval`, and `setEnabled(_:) throws` (register/unregister). Add `openSystemSettings()` → `SMAppService.openSystemSettingsLoginItems()`.
-- [ ] `SettingsView.swift`: add an "Auto-hide when nothing is playing" toggle (`@AppStorage("autoHide")`, default false) in PLAYBACK. Add a "Launch at login" toggle in GENERAL, backed by `LoginItem` with state refreshed `onAppear`. Show an inline warning plus an "Open System Settings…" button when approval is required, and the localized error text when `setEnabled` throws.
+- [x] `LyricsCore/VisibilityPolicy.swift`: `shouldShow(userHidden:autoHide:playing:hasTrack:notPlayingSince: Date?, now:)` returns `!userHidden && (!autoHide || (hasTrack && playing) || notPlayingSince.map { now.timeIntervalSince($0) < 3 } ?? false)`. At launch, `notPlayingSince` starts as the launch time, so auto-hide also waits 3 s before hiding an idle overlay.
+- [x] `AppDelegate.swift`: track `userHidden` (set by the hotkey or menu toggle, cleared when the user shows it again or reopens the app), observe `model` changes (Combine `objectWillChange` or a 0.8 s tick), and order the overlay in or out per the policy. `toggleVisibility` flips `userHidden`, and the menu title reflects the actual visibility.
+- [x] `PlayerModel.swift`: publish `notPlayingSince: Date?`, set when playback stops or there's no track and cleared when playing
+- [x] `AppDelegate.swift`: persist `clickThrough` under the `"clickThrough"` key (default false). Apply it at launch to `overlay.ignoresMouseEvents` and `clickItem.state`. `applicationShouldHandleReopen` also stores `false`.
+- [x] `LyricsOverlay/LoginItem.swift`: `LoginItem.isEnabled` (`SMAppService.mainApp.status == .enabled`), `requiresApproval`, and `setEnabled(_:) throws` (register/unregister). Add `openSystemSettings()` → `SMAppService.openSystemSettingsLoginItems()`.
+- [x] `SettingsView.swift`: add an "Auto-hide when nothing is playing" toggle (`@AppStorage("autoHide")`, default false) in PLAYBACK. Add a "Launch at login" toggle in GENERAL, backed by `LoginItem` with state refreshed `onAppear`. Show an inline warning plus an "Open System Settings…" button when approval is required, and the localized error text when `setEnabled` throws.
 - [x] Size the settings window to its content (`NSHostingController` with `sizingOptions = .preferredContentSize`) instead of the fixed 420×510 size
-- [ ] L10n: add all new keys in en and de
-- [ ] Add `os.Logger` category `login` for failures
-- [ ] Checks: the `VisibilityPolicy` matrix (userHidden always hides, autoHide off always shows, autoHide shows while playing, still shows 2 s after stopping, hides 4 s after stopping, hides with no track after the grace period)
-- [ ] README: document launch at login (only from the bundled `.app`, moving the app after enabling may require re-enabling), auto-hide, and that click-through is remembered. RELEASE_NOTES v0.2.0 is completed.
+- [x] L10n: add all new keys in en and de
+- [x] Add `os.Logger` category `login` for failures
+- [x] Checks: the `VisibilityPolicy` matrix (userHidden always hides, autoHide off always shows, autoHide shows while playing, still shows 2 s after stopping, hides 4 s after stopping, hides with no track after the grace period)
+- [x] README: document launch at login (only from the bundled `.app`, moving the app after enabling may require re-enabling), auto-hide, and that click-through is remembered. RELEASE_NOTES v0.2.0 is completed.
 
 **Automated Verification**:
-- [ ] `swift build` succeeds
-- [ ] `swift run LyricsCoreChecks` passes, including the `VisibilityPolicy` checks
+- [x] `swift build` succeeds
+- [x] `swift run LyricsCoreChecks` passes, including the `VisibilityPolicy` checks
 - [ ] `bash build-release.sh` succeeds and the CI run on `fork-improvements` is green
 
 **Manual Verification**:
@@ -347,6 +347,13 @@ Dependencies: Phase 2 (L10n), Phase 5 (playing state from the selected player)
 ## Implementation Notes
 
 During implementation, document user feedback, problems, and decisions here.
+
+- Phase 1: `build-release.sh` failed with the local Swift 6.4 toolchain: both `--triple` builds wrote to the same `.build/out` folder, and `lipo -verify_arch arm64 x86_64` now rejects two archs at once. Fixed with a per-arch `--scratch-path` and one `-verify_arch` call per arch (script and CI).
+- Phase 2: the status menu is now rebuilt from scratch in `menuNeedsUpdate`, so `clickItem`/`visibilityItem` references are gone; state is read from `clickThrough` and `overlay.isVisible` on open.
+- Phase 2: the settings-window "size to content" task (Phase 6) was done early, because the new sections clipped in the fixed 420×510 window.
+- Phase 4: `/api/search` is called with title and artist only (as before); album and duration go only to `/api/get`. Searching wording changed to "Searching for lyrics…" / "No lyrics found" since plain lyrics now count.
+- Phase 5: `StatusMessage` cases carry the `PlayerSource` (`automationDenied(source)`, `playerError(source, detail)`, `noTrack(source)`). German uses the app name "Musik". Both scripts also check `application id … is running` inside AppleScript, as a guard against the race where the app quits between the `NSRunningApplication` check and the script.
+- Phase 6: a manual show (hotkey/menu/reopen) while auto-hidden counts as a fresh start of the 3 s grace period; otherwise the toggle would have no visible effect when nothing plays.
 
 ## References
 

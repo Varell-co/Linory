@@ -1,5 +1,6 @@
 import SwiftUI
 import LyricsCore
+import os
 
 struct SettingsView: View {
     @AppStorage("fontSize") private var fontSize = 25.0
@@ -10,6 +11,11 @@ struct SettingsView: View {
     @AppStorage("overlayHeight") private var height = 240.0
     @AppStorage("language") private var languageSetting = AppLanguage.system.rawValue
     @AppStorage("source") private var source = SourcePreference.auto.rawValue
+    @AppStorage("autoHide") private var autoHide = false
+    @State private var launchAtLogin = LoginItem.isEnabled
+    @State private var loginNeedsApproval = LoginItem.requiresApproval
+    @State private var loginError: String?
+    private let log = Logger(subsystem: LyricsService.subsystem, category: "login")
     var resize: () -> Void
 
     private var language: AppLanguage { (AppLanguage(rawValue: languageSetting) ?? .system).resolved(preferredLanguages: Locale.preferredLanguages) }
@@ -32,11 +38,23 @@ struct SettingsView: View {
                 Text(t(.sourceSpotify)).tag(SourcePreference.spotify.rawValue)
                 Text(t(.sourceMusic)).tag(SourcePreference.music.rawValue)
             }
+            Toggle(t(.autoHide), isOn: $autoHide)
             section(.sectionGeneral)
             Picker(t(.language), selection: $languageSetting) {
                 Text(t(.languageSystem)).tag(AppLanguage.system.rawValue)
                 Text(t(.languageEnglish)).tag(AppLanguage.en.rawValue)
                 Text(t(.languageGerman)).tag(AppLanguage.de.rawValue)
+            }
+            Toggle(t(.launchAtLogin), isOn: Binding(get: { launchAtLogin }, set: setLaunchAtLogin))
+            if loginNeedsApproval {
+                HStack {
+                    Label(t(.loginNeedsApproval), systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                    Button(t(.loginOpenSettings)) { LoginItem.openSystemSettings() }
+                }.font(.caption)
+            }
+            if let loginError {
+                Label(L10n.string(.loginError, loginError, language: language), systemImage: "exclamationmark.triangle")
+                    .font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
             }
             Text(t(.settingsFooter))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -44,6 +62,22 @@ struct SettingsView: View {
         .padding(24).frame(width: 420)
         .onChange(of: width) { _ in resize() }
         .onChange(of: height) { _ in resize() }
+        .onAppear(perform: refreshLogin)
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in refreshLogin() }
+    }
+    private func refreshLogin() {
+        launchAtLogin = LoginItem.isEnabled
+        loginNeedsApproval = LoginItem.requiresApproval
+    }
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            try LoginItem.setEnabled(enabled)
+            loginError = nil
+        } catch {
+            loginError = error.localizedDescription
+            log.error("\(enabled ? "register" : "unregister", privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+        }
+        refreshLogin()
     }
     private func section(_ key: L10nKey) -> some View {
         Text(t(key)).font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 6)

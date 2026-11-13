@@ -9,6 +9,9 @@ First release of the [MikeLeonFox/LyricsOverlay](https://github.com/MikeLeonFox/
 - **English and German interface**, following the macOS language, with an override in Settings.
 - **More reliable lyrics lookup.** Exact LRCLIB lookup by title, artist, album and duration, then a search. Results are cached locally, so replaying a song works offline.
 - **Plain-lyrics fallback.** Songs without synced lyrics show their plain lyrics spread over the song, marked "~ not synced". Instrumental tracks are labeled.
+- **Launch at login** toggle in Settings.
+- **Auto-hide when nothing is playing** (off by default). A manual hide always wins.
+- **Click-through is remembered** across relaunches.
 
 ## Download
 

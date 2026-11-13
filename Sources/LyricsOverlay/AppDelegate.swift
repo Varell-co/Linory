@@ -18,11 +18,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     var settings: NSWindow!
     var statusItem: NSStatusItem!
     var statusMenu: NSMenu!
-    var clickThrough = false
+    /// Persisted so click-through survives relaunch.
+    var clickThrough = false {
+        didSet {
+            UserDefaults.standard.set(clickThrough, forKey: "clickThrough")
+            overlay?.ignoresMouseEvents = clickThrough
+        }
+    }
+    /// Set by the hotkey or menu; always wins over auto-show.
+    private var userHidden = false
+    /// A manual show while auto-hidden keeps the overlay up for the grace period, so the toggle has a visible effect.
+    private var manualShowAt: Date?
+    private var visibilityTimer: Timer?
     private let hotKey = HotKey()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        UserDefaults.standard.register(defaults: ["fontSize": 25.0, "opacity": 0.78, "overlayOpacity": 1.0, "offset": 0.0, "overlayWidth": 400.0, "overlayHeight": 240.0, "language": AppLanguage.system.rawValue, "source": SourcePreference.auto.rawValue])
+        UserDefaults.standard.register(defaults: ["fontSize": 25.0, "opacity": 0.78, "overlayOpacity": 1.0, "offset": 0.0, "overlayWidth": 400.0, "overlayHeight": 240.0, "language": AppLanguage.system.rawValue, "source": SourcePreference.auto.rawValue, "clickThrough": false, "autoHide": false])
         NSApp.setActivationPolicy(.accessory)
         overlay = NSPanel(contentRect: NSRect(x: 0, y: 0, width: UserDefaults.standard.double(forKey: "overlayWidth"), height: UserDefaults.standard.double(forKey: "overlayHeight")), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         overlay.isOpaque = false; overlay.backgroundColor = .clear; overlay.hasShadow = true
@@ -35,10 +46,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             if NSScreen.screens.contains(where: { $0.visibleFrame.intersects(rect) }) { overlay.setFrame(rect, display: true) }
             else { position("topRight") }
         } else { position("topRight") }
+        clickThrough = UserDefaults.standard.bool(forKey: "clickThrough")
         overlay.orderFrontRegardless()
         buildMenu()
         if !hotKey.register(handler: { [weak self] in self?.toggleVisibility() }) { showHotKeyError() }
         model.start()
+        visibilityTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.applyVisibility() }
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             self?.applyLanguage()
         }
@@ -60,8 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         clickThrough = false
-        overlay.ignoresMouseEvents = false
-        overlay.orderFrontRegardless()
+        setUserHidden(false)
         showSettings()
         return true
     }
@@ -129,8 +141,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             showSettings()
         }
     }
-    @objc func toggleVisibility() { if overlay.isVisible { overlay.orderOut(nil) } else { overlay.orderFrontRegardless() } }
-    @objc func toggleClick() { clickThrough.toggle(); overlay.ignoresMouseEvents = clickThrough }
+    @objc func toggleVisibility() { setUserHidden(overlay.isVisible) }
+    private func setUserHidden(_ hidden: Bool) {
+        userHidden = hidden
+        if !hidden { manualShowAt = Date() }
+        applyVisibility()
+    }
+    private func applyVisibility() {
+        let show = VisibilityPolicy.shouldShow(
+            userHidden: userHidden, autoHide: UserDefaults.standard.bool(forKey: "autoHide"),
+            playing: model.clock.playing, hasTrack: model.track != nil,
+            notPlayingSince: [model.notPlayingSince, manualShowAt].compactMap { $0 }.max(), now: Date())
+        if show && !overlay.isVisible { overlay.orderFrontRegardless() }
+        if !show && overlay.isVisible { overlay.orderOut(nil) }
+    }
+    @objc func toggleClick() { clickThrough.toggle() }
     @objc func selectSource(_ sender: NSMenuItem) { if let value = sender.representedObject as? String { UserDefaults.standard.set(value, forKey: "source") } }
     @objc func selectCorner(_ sender: NSMenuItem) { if let key = sender.representedObject as? String { position(key) } }
     @objc func showSettings() {

@@ -23,6 +23,7 @@ public enum L10nKey: String, CaseIterable {
     case source, sourceAuto, sourceSpotify, sourceMusic, playerNameSpotify, playerNameMusic
     case fontSize, overlayOpacity, backgroundOpacity, width, height, timingOffset, opacitySuffix
     case language, languageSystem, languageEnglish, languageGerman
+    case autoHide, launchAtLogin, loginNeedsApproval, loginOpenSettings, loginError
     case settingsFooter
     // Hotkey alert
     case hotKeyErrorTitle, hotKeyErrorText
@@ -83,6 +84,11 @@ public enum L10n {
             .languageSystem: "System",
             .languageEnglish: "English",
             .languageGerman: "Deutsch",
+            .autoHide: "Auto-hide when nothing is playing",
+            .launchAtLogin: "Launch at login",
+            .loginNeedsApproval: "Needs approval in System Settings.",
+            .loginOpenSettings: "Open System Settings…",
+            .loginError: "Could not change the login item: %@",
             .settingsFooter: "Show/hide overlay: ⌥ ⇧ L\nPositive offsets show lyrics earlier. Song title and artist are sent to LRCLIB for the search.",
             .hotKeyErrorTitle: "Shortcut unavailable",
             .hotKeyErrorText: "⌥ ⇧ L could not be registered. Another app may be using this shortcut. You can still show and hide the overlay from the menu.",
@@ -134,6 +140,11 @@ public enum L10n {
             .languageSystem: "System",
             .languageEnglish: "English",
             .languageGerman: "Deutsch",
+            .autoHide: "Ausblenden, wenn nichts läuft",
+            .launchAtLogin: "Bei Anmeldung starten",
+            .loginNeedsApproval: "Muss in den Systemeinstellungen erlaubt werden.",
+            .loginOpenSettings: "Systemeinstellungen öffnen …",
+            .loginError: "Anmeldeobjekt konnte nicht geändert werden: %@",
             .settingsFooter: "Overlay ein-/ausblenden: ⌥ ⇧ L\nPositive Werte zeigen die Lyrics früher. Songtitel und Interpret werden zur Suche an LRCLIB gesendet.",
             .hotKeyErrorTitle: "Hotkey nicht verfügbar",
             .hotKeyErrorText: "⌥ ⇧ L konnte nicht registriert werden. Möglicherweise verwendet eine andere App diese Tastenkombination. Das Overlay lässt sich weiterhin über das Menü ein- und ausblenden.",
