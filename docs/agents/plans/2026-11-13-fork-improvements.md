@@ -228,21 +228,21 @@ Dependencies: Phase 1
 Every user-facing string comes from a checked English/German table. The language follows the system and can be overridden live.
 
 **Tasks**:
-- [ ] `LyricsCore/Localization.swift`: add `public enum AppLanguage: String, CaseIterable { case system, en, de }` with `func resolved(preferredLanguages: [String]) -> AppLanguage` (`de*` → `.de`, anything else → `.en`)
-- [ ] Same file: `public enum L10nKey: String, CaseIterable` covering every string currently in `main.swift` (menu items, settings labels and suffixes, footer, hotkey alert, tooltips, overlay placeholder `LYRICS OVERLAY`, settings window title), plus `public enum L10n { static func string(_ key: L10nKey, _ args: CVarArg..., language: AppLanguage) -> String }` backed by `[AppLanguage: [L10nKey: String]]` for `.en` and `.de`. Keep the German wording from the current `main.swift`.
-- [ ] Same file: `public enum StatusMessage: Equatable` (`waitingForPlayer`, `openPlayer`, `automationDenied`, `playerError(String)`, `noTrack`, `searching`, `networkError`, `noLyrics`) with `func text(language:) -> String`
-- [ ] `PlayerModel.swift`: change `status` to `StatusMessage` and map the existing messages to cases
-- [ ] `OverlayView.swift`, `SettingsView.swift`: add `@AppStorage("language") var language = AppLanguage.system.rawValue`, resolve it with `Locale.preferredLanguages`, and replace literals with `L10n.string`
-- [ ] `SettingsView.swift`: add a `Picker` for Language (System / English / Deutsch, labels from L10n). Group the controls under section headers APPEARANCE / TIMING / GENERAL as in the mockup.
-- [ ] `AppDelegate.swift`: make `statusMenu` delegate `menuNeedsUpdate(_:)` rebuild all item titles from the current language. Set the settings window title and status-item tooltip from L10n, and update them on `UserDefaults.didChangeNotification`. Localize the hotkey alert at display time.
-- [ ] Register `"language": "system"` in `UserDefaults.register(defaults:)`
-- [ ] Checks: assert every `L10nKey` has a non-empty value for `.en` and `.de`, `AppLanguage.system.resolved(preferredLanguages: ["de-DE"]) == .de`, `["fr-FR"]` → `.en`, an explicit `.de` stays `.de`, and the format arguments of `StatusMessage.playerError("x")` appear in the text
-- [ ] README: mention the language setting under "Using the overlay"
+- [x] `LyricsCore/Localization.swift`: add `public enum AppLanguage: String, CaseIterable { case system, en, de }` with `func resolved(preferredLanguages: [String]) -> AppLanguage` (`de*` → `.de`, anything else → `.en`)
+- [x] Same file: `public enum L10nKey: String, CaseIterable` covering every string currently in `main.swift` (menu items, settings labels and suffixes, footer, hotkey alert, tooltips, overlay placeholder `LYRICS OVERLAY`, settings window title), plus `public enum L10n { static func string(_ key: L10nKey, _ args: CVarArg..., language: AppLanguage) -> String }` backed by `[AppLanguage: [L10nKey: String]]` for `.en` and `.de`. Keep the German wording from the current `main.swift`.
+- [x] Same file: `public enum StatusMessage: Equatable` (`waitingForPlayer`, `openPlayer`, `automationDenied`, `playerError(String)`, `noTrack`, `searching`, `networkError`, `noLyrics`) with `func text(language:) -> String`
+- [x] `PlayerModel.swift`: change `status` to `StatusMessage` and map the existing messages to cases
+- [x] `OverlayView.swift`, `SettingsView.swift`: add `@AppStorage("language") var language = AppLanguage.system.rawValue`, resolve it with `Locale.preferredLanguages`, and replace literals with `L10n.string`
+- [x] `SettingsView.swift`: add a `Picker` for Language (System / English / Deutsch, labels from L10n). Group the controls under section headers APPEARANCE / TIMING / GENERAL as in the mockup.
+- [x] `AppDelegate.swift`: make `statusMenu` delegate `menuNeedsUpdate(_:)` rebuild all item titles from the current language. Set the settings window title and status-item tooltip from L10n, and update them on `UserDefaults.didChangeNotification`. Localize the hotkey alert at display time.
+- [x] Register `"language": "system"` in `UserDefaults.register(defaults:)`
+- [x] Checks: assert every `L10nKey` has a non-empty value for `.en` and `.de`, `AppLanguage.system.resolved(preferredLanguages: ["de-DE"]) == .de`, `["fr-FR"]` → `.en`, an explicit `.de` stays `.de`, and the format arguments of `StatusMessage.playerError("x")` appear in the text
+- [x] README: mention the language setting under "Using the overlay"
 
 **Automated Verification**:
-- [ ] `swift build` succeeds
-- [ ] `swift run LyricsCoreChecks` passes, including the localization checks
-- [ ] `grep -nE '"[^"]*[äöüÄÖÜß][^"]*"' Sources/LyricsOverlay/*.swift` returns nothing (no German literals left outside the core table)
+- [x] `swift build` succeeds
+- [x] `swift run LyricsCoreChecks` passes, including the localization checks
+- [x] `grep -nE '"[^"]*[äöüÄÖÜß][^"]*"' Sources/LyricsOverlay/*.swift` returns nothing (no German literals left outside the core table)
 
 **Manual Verification**:
 - [ ] With the system language set to English, the overlay, Settings, menu and hotkey alert are in English. Switching the picker to Deutsch changes them right away, including the right-click menu the next time it opens.
@@ -328,7 +328,7 @@ Dependencies: Phase 2 (L10n), Phase 5 (playing state from the selected player)
 - [ ] `AppDelegate.swift`: persist `clickThrough` under the `"clickThrough"` key (default false). Apply it at launch to `overlay.ignoresMouseEvents` and `clickItem.state`. `applicationShouldHandleReopen` also stores `false`.
 - [ ] `LyricsOverlay/LoginItem.swift`: `LoginItem.isEnabled` (`SMAppService.mainApp.status == .enabled`), `requiresApproval`, and `setEnabled(_:) throws` (register/unregister). Add `openSystemSettings()` → `SMAppService.openSystemSettingsLoginItems()`.
 - [ ] `SettingsView.swift`: add an "Auto-hide when nothing is playing" toggle (`@AppStorage("autoHide")`, default false) in PLAYBACK. Add a "Launch at login" toggle in GENERAL, backed by `LoginItem` with state refreshed `onAppear`. Show an inline warning plus an "Open System Settings…" button when approval is required, and the localized error text when `setEnabled` throws.
-- [ ] Size the settings window to its content (`NSHostingController` with `sizingOptions = .preferredContentSize`) instead of the fixed 420×510 size
+- [x] Size the settings window to its content (`NSHostingController` with `sizingOptions = .preferredContentSize`) instead of the fixed 420×510 size
 - [ ] L10n: add all new keys in en and de
 - [ ] Add `os.Logger` category `login` for failures
 - [ ] Checks: the `VisibilityPolicy` matrix (userHidden always hides, autoHide off always shows, autoHide shows while playing, still shows 2 s after stopping, hides 4 s after stopping, hides with no track after the grace period)

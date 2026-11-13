@@ -47,6 +47,7 @@ The build script creates a locally ad-hoc-signed app, not a Developer ID-signed 
 - Click the note in the overlay, or left-click the menu-bar icon, to open settings.
 - Right-click the menu-bar icon to position the overlay, toggle click-through, or quit. Turn click-through off before dragging or clicking the overlay again.
 - Set background opacity to 0% for floating text. Positive timing offsets show lyrics earlier.
+- The interface follows the macOS language (English or German, English otherwise). Override it under **Settings → General → Language**; the change applies immediately.
 - If the global shortcut is already registered by another app, a warning is shown; the menu can still toggle visibility.
 
 ## Privacy and third-party services

@@ -5,7 +5,7 @@ final class PlayerModel: ObservableObject {
     @Published var track: Track?
     @Published var lines: [LyricLine] = []
     @Published var position: Double = 0
-    @Published var status = "Warte auf Spotify …"
+    @Published var status: StatusMessage = .waitingForPlayer
     @Published var playing = false
     private var generation = 0
     private var pending = false
@@ -30,7 +30,7 @@ final class PlayerModel: ObservableObject {
                 guard let self else { return }
                 self.pending = false
                 switch result {
-                case .failure(let error): self.clear(error.localizedDescription)
+                case .failure(let status): self.clear(status)
                 case .success(let snapshot): self.update(snapshot)
                 }
             }
@@ -38,11 +38,10 @@ final class PlayerModel: ObservableObject {
     }
 
     private struct Snapshot { let track: Track; let position: Double; let playing: Bool }
-    private struct ReadError: LocalizedError { let message: String; var errorDescription: String? { message } }
 
-    private static func readSpotify() -> Result<Snapshot, ReadError> {
+    private static func readSpotify() -> Result<Snapshot, StatusMessage> {
         guard NSRunningApplication.runningApplications(withBundleIdentifier: "com.spotify.client").first != nil else {
-            return .failure(ReadError(message: "Öffne Spotify und spiele einen Song ab."))
+            return .failure(.openPlayer)
         }
         let source = """
         tell application id "com.spotify.client"
@@ -54,21 +53,21 @@ final class PlayerModel: ObservableObject {
         var error: NSDictionary?
         guard let descriptor = NSAppleScript(source: source)?.executeAndReturnError(&error) else {
             let number = error?[NSAppleScript.errorNumber] as? Int
-            let detail = error?[NSAppleScript.errorMessage] as? String ?? "Spotify konnte nicht gelesen werden."
-            return .failure(ReadError(message: number == -1743 ? "Spotify-Zugriff erlauben: Systemeinstellungen → Datenschutz & Sicherheit → Automation." : "Spotify: \(detail)"))
+            let detail = error?[NSAppleScript.errorMessage] as? String ?? "\(number ?? 0)"
+            return .failure(number == -1743 ? .automationDenied : .playerError(detail))
         }
         guard descriptor.numberOfItems >= 6,
               let id = descriptor.atIndex(1)?.stringValue,
               let title = descriptor.atIndex(2)?.stringValue,
               let artist = descriptor.atIndex(3)?.stringValue,
               let duration = descriptor.atIndex(4), let position = descriptor.atIndex(5) else {
-            return .failure(ReadError(message: "Spiele einen Song in Spotify ab."))
+            return .failure(.noTrack)
         }
         let track = Track(id: id, title: title, artist: artist, duration: duration.doubleValue / 1000)
         return .success(Snapshot(track: track, position: position.doubleValue, playing: descriptor.atIndex(6)?.booleanValue ?? false))
     }
 
-    private func clear(_ message: String) {
+    private func clear(_ message: StatusMessage) {
         if track != nil { generation += 1 }
         track = nil; lines = []; position = 0; playing = false; status = message
     }
@@ -79,7 +78,7 @@ final class PlayerModel: ObservableObject {
         guard track != snapshot.track else { return }
         track = snapshot.track
         lines = []
-        status = "Suche synchronisierte Lyrics …"
+        status = .searching
         generation += 1
         let requestedGeneration = generation
         let track = snapshot.track
@@ -96,7 +95,7 @@ final class PlayerModel: ObservableObject {
             DispatchQueue.main.async {
                 guard let self, self.generation == requestedGeneration else { return }
                 self.lines = parsed
-                self.status = error != nil || !httpOK || results == nil ? "Lyrics konnten nicht geladen werden. Prüfe deine Internetverbindung." : "Keine synchronisierten Lyrics für diesen Song gefunden."
+                self.status = error != nil || !httpOK || results == nil ? .networkError : .noLyrics
             }
         }.resume()
     }

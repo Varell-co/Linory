@@ -8,6 +8,8 @@ struct OverlayView: View {
     @AppStorage("opacity") private var opacity = 0.78
     @AppStorage("overlayOpacity") private var overlayOpacity = 1.0
     @AppStorage("offset") private var offset = 0.0
+    @AppStorage("language") private var languageSetting = AppLanguage.system.rawValue
+    private var language: AppLanguage { (AppLanguage(rawValue: languageSetting) ?? .system).resolved(preferredLanguages: Locale.preferredLanguages) }
 
     private var active: Int? { LRC.currentIndex(model.lines, at: model.position + offset) }
     private var visibleLines: [(Int, LyricLine)] {
@@ -24,14 +26,14 @@ struct OverlayView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("Einstellungen öffnen")
-                Text(model.track.map { "\($0.title)  ·  \($0.artist)" } ?? "LYRICS OVERLAY")
+                .help(L10n.string(.openSettingsHelp, language: language))
+                Text(model.track.map { "\($0.title)  ·  \($0.artist)" } ?? L10n.string(.overlayPlaceholder, language: language))
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
             .font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.62))
             if model.lines.isEmpty {
-                Text(model.status).font(.system(size: 15, weight: .medium)).foregroundStyle(.white.opacity(0.8))
+                Text(model.status.text(language: language)).font(.system(size: 15, weight: .medium)).foregroundStyle(.white.opacity(0.8))
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(visibleLines, id: \.0) { index, line in

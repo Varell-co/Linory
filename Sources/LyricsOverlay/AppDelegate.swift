@@ -2,19 +2,27 @@ import AppKit
 import SwiftUI
 import LyricsCore
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+extension AppLanguage {
+    /// The language picked in Settings, resolved against the macOS language order.
+    static var current: AppLanguage {
+        (AppLanguage(rawValue: UserDefaults.standard.string(forKey: "language") ?? "") ?? .system)
+            .resolved(preferredLanguages: Locale.preferredLanguages)
+    }
+}
+
+func tr(_ key: L10nKey, _ args: CVarArg...) -> String { L10n.string(key, arguments: args, language: .current) }
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
     let model = PlayerModel()
     var overlay: NSPanel!
     var settings: NSWindow!
     var statusItem: NSStatusItem!
     var statusMenu: NSMenu!
     var clickThrough = false
-    var clickItem: NSMenuItem!
-    var visibilityItem: NSMenuItem!
     private let hotKey = HotKey()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        UserDefaults.standard.register(defaults: ["fontSize": 25.0, "opacity": 0.78, "overlayOpacity": 1.0, "offset": 0.0, "overlayWidth": 400.0, "overlayHeight": 240.0])
+        UserDefaults.standard.register(defaults: ["fontSize": 25.0, "opacity": 0.78, "overlayOpacity": 1.0, "offset": 0.0, "overlayWidth": 400.0, "overlayHeight": 240.0, "language": AppLanguage.system.rawValue])
         NSApp.setActivationPolicy(.accessory)
         overlay = NSPanel(contentRect: NSRect(x: 0, y: 0, width: UserDefaults.standard.double(forKey: "overlayWidth"), height: UserDefaults.standard.double(forKey: "overlayHeight")), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         overlay.isOpaque = false; overlay.backgroundColor = .clear; overlay.hasShadow = true
@@ -31,11 +39,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         buildMenu()
         if !hotKey.register(handler: { [weak self] in self?.toggleVisibility() }) { showHotKeyError() }
         model.start()
+        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.applyLanguage()
+        }
+    }
+    /// Menu titles are rebuilt in menuNeedsUpdate; these are the strings that stay on screen.
+    private func applyLanguage() {
+        statusItem?.button?.toolTip = tr(.statusItemTooltip)
+        statusItem?.button?.image?.accessibilityDescription = tr(.statusItemDescription)
+        settings?.title = tr(.settingsWindowTitle)
     }
     private func showHotKeyError() {
         let alert = NSAlert()
-        alert.messageText = "Hotkey nicht verfügbar"
-        alert.informativeText = "⌥ ⇧ L konnte nicht registriert werden. Möglicherweise verwendet eine andere App diese Tastenkombination. Das Overlay lässt sich weiterhin über das Menü ein- und ausblenden."
+        alert.messageText = tr(.hotKeyErrorTitle)
+        alert.informativeText = tr(.hotKeyErrorText)
         alert.runModal()
     }
     func applicationWillTerminate(_ notification: Notification) {
@@ -44,9 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         clickThrough = false
         overlay.ignoresMouseEvents = false
-        clickItem.state = .off
         overlay.orderFrontRegardless()
-        visibilityItem.title = "Overlay ausblenden"
         showSettings()
         return true
     }
@@ -70,25 +85,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     func buildMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "music.note.list", accessibilityDescription: "Lyrics Overlay – Einstellungen")
-        statusItem.button?.toolTip = "Einstellungen öffnen · Rechtsklick für Menü"
+        statusItem.button?.image = NSImage(systemSymbolName: "music.note.list", accessibilityDescription: tr(.statusItemDescription))
+        statusItem.button?.toolTip = tr(.statusItemTooltip)
         statusItem.button?.target = self
         statusItem.button?.action = #selector(statusClicked(_:))
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        let menu = NSMenu()
+        statusMenu = NSMenu()
+        statusMenu.delegate = self
+    }
+    /// Rebuilt on every open so titles follow the current language and state.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu === statusMenu else { return }
+        menu.removeAllItems()
         let title = NSMenuItem(title: "Lyrics Overlay", action: nil, keyEquivalent: ""); title.isEnabled = false; menu.addItem(title)
         menu.addItem(.separator())
-        visibilityItem = NSMenuItem(title: "Overlay ausblenden", action: #selector(toggleVisibility), keyEquivalent: ""); visibilityItem.target = self; menu.addItem(visibilityItem)
-        clickItem = NSMenuItem(title: "Klicks durchlassen", action: #selector(toggleClick), keyEquivalent: ""); clickItem.target = self; menu.addItem(clickItem)
-        let corners = NSMenu(title: "Position")
-        for (title, key) in [("Oben links", "topLeft"), ("Oben rechts", "topRight"), ("Unten links", "bottomLeft"), ("Unten rechts", "bottomRight")] {
-            let item = NSMenuItem(title: title, action: #selector(selectCorner(_:)), keyEquivalent: ""); item.representedObject = key; item.target = self; corners.addItem(item)
+        menu.addItem(item(tr(overlay.isVisible ? .hideOverlay : .showOverlay), #selector(toggleVisibility)))
+        let click = item(tr(.clickThrough), #selector(toggleClick)); click.state = clickThrough ? .on : .off; menu.addItem(click)
+        let corners = NSMenu()
+        for (key, corner) in [(L10nKey.topLeft, "topLeft"), (.topRight, "topRight"), (.bottomLeft, "bottomLeft"), (.bottomRight, "bottomRight")] {
+            let entry = item(tr(key), #selector(selectCorner(_:))); entry.representedObject = corner; corners.addItem(entry)
         }
-        let positionItem = NSMenuItem(title: "Position", action: nil, keyEquivalent: ""); positionItem.submenu = corners; menu.addItem(positionItem)
+        let positionItem = NSMenuItem(title: tr(.position), action: nil, keyEquivalent: ""); positionItem.submenu = corners; menu.addItem(positionItem)
         menu.addItem(.separator())
-        let preferences = NSMenuItem(title: "Einstellungen …", action: #selector(showSettings), keyEquivalent: ","); preferences.target = self; menu.addItem(preferences)
-        let quit = NSMenuItem(title: "Beenden", action: #selector(quitApp), keyEquivalent: "q"); quit.target = self; menu.addItem(quit)
-        statusMenu = menu
+        menu.addItem(item(tr(.settingsMenu), #selector(showSettings), key: ","))
+        menu.addItem(item(tr(.quit), #selector(quitApp), key: "q"))
+    }
+    private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key); item.target = self; return item
     }
     @objc func statusClicked(_ sender: NSStatusBarButton) {
         if NSApp.currentEvent?.type == .rightMouseUp {
@@ -99,15 +122,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             showSettings()
         }
     }
-    @objc func toggleVisibility() { if overlay.isVisible { overlay.orderOut(nil) } else { overlay.orderFrontRegardless() }; visibilityItem.title = overlay.isVisible ? "Overlay ausblenden" : "Overlay einblenden" }
-    @objc func toggleClick() { clickThrough.toggle(); overlay.ignoresMouseEvents = clickThrough; clickItem.state = clickThrough ? .on : .off }
+    @objc func toggleVisibility() { if overlay.isVisible { overlay.orderOut(nil) } else { overlay.orderFrontRegardless() } }
+    @objc func toggleClick() { clickThrough.toggle(); overlay.ignoresMouseEvents = clickThrough }
     @objc func selectCorner(_ sender: NSMenuItem) { if let key = sender.representedObject as? String { position(key) } }
     @objc func showSettings() {
         if settings == nil {
-            settings = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 510), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            settings.title = "Lyrics Overlay – Einstellungen"
+            let hosting = NSHostingController(rootView: SettingsView(resize: { [weak self] in self?.resize() }))
+            hosting.sizingOptions = .preferredContentSize // window follows the content height
+            settings = NSWindow(contentViewController: hosting)
+            settings.styleMask = [.titled, .closable]
+            settings.title = tr(.settingsWindowTitle)
             settings.isReleasedWhenClosed = false
-            settings.contentView = NSHostingView(rootView: SettingsView(resize: { [weak self] in self?.resize() }))
             settings.center()
         }
         settings.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
