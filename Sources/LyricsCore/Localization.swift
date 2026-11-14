@@ -19,12 +19,13 @@ public enum L10nKey: String, CaseIterable {
     // Windows and overlay
     case settingsWindowTitle, openSettingsHelp, overlayPlaceholder, tagline, endorsement
     // Settings
-    case sectionAppearance, sectionTiming, sectionPlayback, sectionGeneral
+    case sectionAppearance, sectionTiming, sectionGeneral, sectionAbout
+    case generalSubtitle, overlaySubtitle, timingSubtitle, aboutSubtitle, version
+    case sourceHint, autoHideHint, launchAtLoginHint, languageHint, hotKeyTitle, hotKeyHint, timingHint, privacyNote
     case source, sourceAuto, sourceSpotify, sourceMusic, playerNameSpotify, playerNameMusic
     case fontSize, overlayOpacity, backgroundOpacity, width, height, timingOffset, opacitySuffix
     case language, languageSystem, languageEnglish, languageGerman
     case autoHide, launchAtLogin, loginNeedsApproval, loginOpenSettings, loginError
-    case settingsFooter
     // Hotkey alert
     case hotKeyErrorTitle, hotKeyErrorText
     // Status messages
@@ -65,10 +66,6 @@ public enum L10n {
             .overlayPlaceholder: "Linory",
             .tagline: "Lyrics in your flow.",
             .endorsement: "A Varell product",
-            .sectionAppearance: "APPEARANCE",
-            .sectionTiming: "TIMING",
-            .sectionPlayback: "PLAYBACK",
-            .sectionGeneral: "GENERAL",
             .source: "Source",
             .sourceAuto: "Auto",
             .sourceSpotify: "Spotify",
@@ -91,7 +88,6 @@ public enum L10n {
             .loginNeedsApproval: "Needs approval in System Settings.",
             .loginOpenSettings: "Open System Settings…",
             .loginError: "Could not change the login item: %@",
-            .settingsFooter: "Show/hide overlay: ⌥ ⇧ L\nPositive offsets show lyrics earlier. Song title and artist are sent to LRCLIB for the search.",
             .hotKeyErrorTitle: "Shortcut unavailable",
             .hotKeyErrorText: "⌥ ⇧ L could not be registered. Another app may be using this shortcut. You can still show and hide the overlay from the menu.",
             .statusWaitingForPlayer: "Waiting for Spotify or Music…",
@@ -104,6 +100,23 @@ public enum L10n {
             .statusNoLyrics: "No lyrics found for this song.",
             .statusInstrumental: "♪ Instrumental",
             .statusNotSynced: "~ not synced",
+            .sectionAppearance: "Overlay",
+            .sectionTiming: "Timing",
+            .sectionGeneral: "General",
+            .sectionAbout: "About",
+            .generalSubtitle: "Core settings and behavior.",
+            .overlaySubtitle: "Size, type and transparency.",
+            .timingSubtitle: "Line up lyrics with the music.",
+            .aboutSubtitle: "Lyrics in your flow.",
+            .version: "Version %@",
+            .sourceHint: "Which player Linory follows.",
+            .autoHideHint: "Hide the overlay a few seconds after playback stops.",
+            .launchAtLoginHint: "Start Linory automatically with macOS.",
+            .languageHint: "Language of the Linory interface.",
+            .hotKeyTitle: "Overlay hotkey",
+            .hotKeyHint: "Show or hide the lyrics overlay.",
+            .timingHint: "Positive values show lyrics earlier.",
+            .privacyNote: "Song title, artist, album and duration are sent to LRCLIB to find lyrics. Results are cached on this Mac.",
         ],
         .de: [
             .hideOverlay: "Overlay ausblenden",
@@ -123,10 +136,6 @@ public enum L10n {
             .overlayPlaceholder: "Linory",
             .tagline: "Lyrics in deinem Flow.",
             .endorsement: "Ein Produkt von Varell",
-            .sectionAppearance: "DARSTELLUNG",
-            .sectionTiming: "TIMING",
-            .sectionPlayback: "WIEDERGABE",
-            .sectionGeneral: "ALLGEMEIN",
             .source: "Quelle",
             .sourceAuto: "Automatisch",
             .sourceSpotify: "Spotify",
@@ -149,7 +158,6 @@ public enum L10n {
             .loginNeedsApproval: "Muss in den Systemeinstellungen erlaubt werden.",
             .loginOpenSettings: "Systemeinstellungen öffnen …",
             .loginError: "Anmeldeobjekt konnte nicht geändert werden: %@",
-            .settingsFooter: "Overlay ein-/ausblenden: ⌥ ⇧ L\nPositive Werte zeigen die Lyrics früher. Songtitel und Interpret werden zur Suche an LRCLIB gesendet.",
             .hotKeyErrorTitle: "Hotkey nicht verfügbar",
             .hotKeyErrorText: "⌥ ⇧ L konnte nicht registriert werden. Möglicherweise verwendet eine andere App diese Tastenkombination. Das Overlay lässt sich weiterhin über das Menü ein- und ausblenden.",
             .statusWaitingForPlayer: "Warte auf Spotify oder Musik …",
@@ -162,12 +170,29 @@ public enum L10n {
             .statusNoLyrics: "Keine Lyrics für diesen Song gefunden.",
             .statusInstrumental: "♪ Instrumental",
             .statusNotSynced: "~ nicht synchron",
+            .sectionAppearance: "Overlay",
+            .sectionTiming: "Timing",
+            .sectionGeneral: "Allgemein",
+            .sectionAbout: "Über",
+            .generalSubtitle: "Grundeinstellungen und Verhalten.",
+            .overlaySubtitle: "Größe, Schrift und Transparenz.",
+            .timingSubtitle: "Lyrics an die Musik anpassen.",
+            .aboutSubtitle: "Lyrics in deinem Flow.",
+            .version: "Version %@",
+            .sourceHint: "Welchem Player Linory folgt.",
+            .autoHideHint: "Overlay einige Sekunden nach dem Stoppen ausblenden.",
+            .launchAtLoginHint: "Linory automatisch mit macOS starten.",
+            .languageHint: "Sprache der Linory-Oberfläche.",
+            .hotKeyTitle: "Overlay-Hotkey",
+            .hotKeyHint: "Lyrics-Overlay ein- oder ausblenden.",
+            .timingHint: "Positive Werte zeigen die Lyrics früher.",
+            .privacyNote: "Songtitel, Interpret, Album und Dauer werden zur Suche an LRCLIB gesendet. Ergebnisse werden auf diesem Mac zwischengespeichert.",
         ],
     ]
 }
 
 /// Status shown in the overlay. Stored typed and rendered at display time so a language switch re-renders it.
-public enum StatusMessage: Equatable, Error {
+public enum StatusMessage: Hashable, Error {
     case waitingForPlayer, openPlayer
     case automationDenied(PlayerSource)
     case playerError(PlayerSource, String)

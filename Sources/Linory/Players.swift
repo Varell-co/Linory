@@ -64,3 +64,36 @@ struct MusicPlayer: MediaPlayer {
         """, durationScale: 1)
     }
 }
+
+/// Cover art for the current track: Spotify gives a CDN link, Music gives the image bytes.
+enum Artwork {
+    case url(URL)
+    case data(Data)
+}
+
+extension MediaPlayer {
+    /// Read once per track change. Returns nil for tracks without artwork (or when the player quit meanwhile).
+    func readArtwork() -> Artwork? {
+        guard isRunning else { return nil }
+        let script: String
+        switch source {
+        case .spotify:
+            script = """
+            if application id "com.spotify.client" is not running then return ""
+            tell application id "com.spotify.client" to return artwork url of current track
+            """
+        case .music:
+            script = """
+            if application id "com.apple.Music" is not running then return ""
+            tell application id "com.apple.Music" to return raw data of artwork 1 of current track
+            """
+        }
+        var error: NSDictionary?
+        guard let descriptor = NSAppleScript(source: script)?.executeAndReturnError(&error) else { return nil }
+        if source == .spotify {
+            return descriptor.stringValue.flatMap { URL(string: $0) }.map(Artwork.url)
+        }
+        let data = descriptor.data
+        return data.isEmpty ? nil : .data(data)
+    }
+}

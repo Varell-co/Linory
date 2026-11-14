@@ -8,8 +8,12 @@ Clone or download this repository, then run the following from the project direc
 
 ```sh
 bash build-app.sh
-open Linory.app
+open "$HOME/Applications/Linory.app"
 ```
+
+Local builds install to `~/Applications/Linory.app` and run as your user, without sudo. Rerun these commands to update; a running Linory restarts with the new build. Build files stay in `.build/local-app`.
+
+To build a bundle elsewhere, set `LINORY_APP_DIR`, for example `LINORY_APP_DIR="$PWD" bash build-app.sh`. Release packaging and CI use this override to keep their bundles in the repository.
 
 The build script creates a locally ad-hoc-signed app, not a Developer ID-signed or notarized distribution. Gatekeeper behavior can differ on another Mac. A signed and notarized release has not been prepared yet.
 

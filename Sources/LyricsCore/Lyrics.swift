@@ -3,26 +3,62 @@ import Foundation
 public struct LyricLine: Equatable, Codable {
     public let time: TimeInterval
     public let text: String
-    public init(time: TimeInterval, text: String) { self.time = time; self.text = text }
+    /// Per-word timing from enhanced LRC, if the source had it. Offsets are relative to `time`,
+    /// so a line repeated under several timestamps (chorus) keeps correct word timing.
+    public let words: [LyricWord]?
+    public init(time: TimeInterval, text: String, words: [LyricWord]? = nil) {
+        self.time = time; self.text = text; self.words = words
+    }
+}
+
+public struct LyricWord: Equatable, Codable {
+    public let offset: TimeInterval
+    public let text: String
+    public init(offset: TimeInterval, text: String) { self.offset = offset; self.text = text }
 }
 
 public enum LRC {
+    private static let lineTag = try! NSRegularExpression(pattern: #"\[(\d{1,3}):(\d{2}(?:\.\d+)?)\]"#)
+    private static let wordTag = try! NSRegularExpression(pattern: #"<(\d{1,3}):(\d{2}(?:\.\d+)?)>"#)
+
     public static func parse(_ input: String) -> [LyricLine] {
-        let pattern = #"\[(\d{1,3}):(\d{2}(?:\.\d+)?)\]"#
-        let regex = try! NSRegularExpression(pattern: pattern)
         var lines: [LyricLine] = []
         for raw in input.components(separatedBy: .newlines) {
             let ns = raw as NSString
-            let matches = regex.matches(in: raw, range: NSRange(location: 0, length: ns.length))
+            let matches = lineTag.matches(in: raw, range: NSRange(location: 0, length: ns.length))
             guard let last = matches.last else { continue }
-            let text = ns.substring(from: last.range.location + last.range.length).trimmingCharacters(in: .whitespacesAndNewlines)
+            let (text, timedWords) = words(in: ns.substring(from: last.range.location + last.range.length))
             for match in matches {
-                guard let minutes = Double(ns.substring(with: match.range(at: 1))),
-                      let seconds = Double(ns.substring(with: match.range(at: 2))), seconds < 60 else { continue }
-                lines.append(LyricLine(time: minutes * 60 + seconds, text: text))
+                guard let time = seconds(ns, match) else { continue }
+                // Enhanced LRC word times are absolute; store them relative to the first timestamp of the line.
+                let base = matches.first.flatMap { seconds(ns, $0) } ?? time
+                let relative = timedWords?.map { LyricWord(offset: max(0, $0.offset - base), text: $0.text) }
+                lines.append(LyricLine(time: time, text: text, words: relative))
             }
         }
         return lines.sorted { $0.time < $1.time }
+    }
+
+    /// Splits text with optional enhanced-LRC word tags like `<00:12.34>` into display text and timed words.
+    private static func words(in body: String) -> (String, [LyricWord]?) {
+        let ns = body as NSString
+        let tags = wordTag.matches(in: body, range: NSRange(location: 0, length: ns.length))
+        let clean = { (s: String) in s.components(separatedBy: .whitespaces).filter { !$0.isEmpty }.joined(separator: " ") }
+        guard !tags.isEmpty else { return (clean(body), nil) }
+        var words: [LyricWord] = []
+        for (i, tag) in tags.enumerated() {
+            let start = tag.range.location + tag.range.length
+            let end = i + 1 < tags.count ? tags[i + 1].range.location : ns.length
+            let text = clean(ns.substring(with: NSRange(location: start, length: end - start)))
+            if let time = seconds(ns, tag), !text.isEmpty { words.append(LyricWord(offset: time, text: text)) }
+        }
+        return (clean(words.map(\.text).joined(separator: " ")), words.isEmpty ? nil : words)
+    }
+
+    private static func seconds(_ ns: NSString, _ match: NSTextCheckingResult) -> TimeInterval? {
+        guard let minutes = Double(ns.substring(with: match.range(at: 1))),
+              let seconds = Double(ns.substring(with: match.range(at: 2))), seconds < 60 else { return nil }
+        return minutes * 60 + seconds
     }
 
     public static func currentIndex(_ lines: [LyricLine], at position: TimeInterval) -> Int? {

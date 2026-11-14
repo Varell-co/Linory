@@ -4,7 +4,7 @@ First release of the [MikeLeonFox/LyricsOverlay](https://github.com/MikeLeonFox/
 
 ## New
 
-- **Apple Music support.** Choose the source under Settings → Playback or in the menu-bar menu: Auto, Spotify or Apple Music. Auto follows the playing app. Players that are not running are never launched.
+- **Apple Music support.** Choose the source under Settings → General or in the menu-bar menu: Auto, Spotify or Apple Music. Auto follows the playing app. Players that are not running are never launched.
 - **Smoother sync.** The highlighted line now changes on time instead of up to 0.8 s late.
 - **English and German interface**, following the macOS language, with an override in Settings.
 - **More reliable lyrics lookup.** Exact LRCLIB lookup by title, artist, album and duration, then a search. Results are cached locally, so replaying a song works offline.

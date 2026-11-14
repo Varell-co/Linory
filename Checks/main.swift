@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 import LyricsCore
 
 func checkParsing() {
@@ -9,6 +10,10 @@ func checkParsing() {
     precondition(LRC.currentIndex(lines, at: 1) == 0)
     precondition(LRC.currentIndex(lines, at: 8) == 2)
     precondition(LRC.currentIndex(lines, at: 12) == 4)
+    let enhanced = LRC.parse("[00:01.00][00:31.00] <00:01.00> Made <00:01.40> up  <00:02.00>line")
+    precondition(enhanced.map(\.text) == ["Made up line", "Made up line"], "word timestamps are stripped from text")
+    precondition(zip(enhanced[0].words?.map(\.offset) ?? [], [0, 0.4, 1.0]).allSatisfy { abs($0 - $1) < 0.001 } && enhanced[0].words?.count == 3, "word times are relative to the line")
+    precondition(enhanced[1].words == enhanced[0].words, "repeated line keeps word timing")
 }
 
 func checkMatching() throws {
@@ -171,6 +176,84 @@ func checkVisibilityPolicy() {
     precondition(!show(playing: true, hasTrack: false, stoppedAgo: 4), "playing without a track is not playing")
 }
 
+func checkWordHighlight() {
+    let line = LyricLine(time: 10, text: "made up words here")
+    let before = WordHighlight.units(for: line, nextTime: 14, at: 9)
+    precondition(before.count == 4 && before.allSatisfy { $0.fill == 0 }, "nothing filled before the line")
+    let middle = WordHighlight.units(for: line, nextTime: 14, at: 10.6).map(\.fill)
+    precondition(middle.first == 1 && middle.last == 0 && zip(middle, middle.dropFirst()).allSatisfy { $0 >= $1 }, "fills left to right")
+    precondition(WordHighlight.units(for: line, nextTime: 14, at: 13.9).allSatisfy { $0.fill == 1 }, "done before next line")
+    precondition(WordHighlight.units(for: line, nextTime: 10.5, at: 10.46).allSatisfy { $0.fill == 1 }, "short gap: done within 90 %")
+
+    let timed = LRC.parse("[00:10.00] <00:10.00> one <00:11.00> two")[0]
+    let exact = WordHighlight.units(for: timed, nextTime: 20, at: 10.5)
+    precondition(exact.map(\.text) == ["one", "two"] && exact[0].fill > 0 && exact[0].fill < 1 && exact[1].fill == 0, "uses exact word times")
+    precondition(WordHighlight.units(for: LyricLine(time: 1, text: ""), nextTime: 2, at: 1.5).isEmpty)
+}
+
+func checkOverlayLayout() {
+    let preferred = CGSize(width: 400, height: 240)
+    let external = CGRect(x: 0, y: 52, width: 5120, height: 1358)
+    let retina = CGRect(x: 5120, y: 0, width: 1728, height: 1085)
+    let start = CGRect(x: 100.3, y: 200.3, width: 400, height: 240)
+    let standard = OverlayLayout.frame(preferredSize: preferred, currentFrame: start, visibleFrame: external, backingScale: 1)
+    let moved = CGRect(x: 5200.3, y: 200.3, width: 400, height: 240)
+    let highDensity = OverlayLayout.frame(preferredSize: preferred, currentFrame: moved, visibleFrame: retina, backingScale: 2)
+    precondition(standard.size == preferred && highDensity.size == preferred, "Retina preserves readable point dimensions")
+    precondition(highDensity.width * 2 == 800, "Retina renders twice as many physical pixels")
+    precondition(standard.minX == 100 && highDensity.minX == 5200.5, "frames align to physical pixels")
+
+    let small = CGRect(x: -320, y: -220, width: 320, height: 220)
+    let fitted = OverlayLayout.frame(preferredSize: preferred, currentFrame: start, visibleFrame: small, backingScale: 1)
+    precondition(fitted == small.insetBy(dx: 16, dy: 16), "small screens shrink and relocate the overlay, including negative coordinates")
+    let restored = OverlayLayout.frame(preferredSize: preferred, currentFrame: fitted, visibleFrame: external, backingScale: 1)
+    precondition(restored.size == preferred && external.contains(restored), "returning to a larger screen restores the preferred size")
+
+    let snapped = CGRect(x: external.maxX - 416, y: external.maxY - 256, width: 400, height: 240)
+    let enlarged = OverlayLayout.frame(preferredSize: CGSize(width: 600, height: 300), currentFrame: snapped, visibleFrame: external, backingScale: 1)
+    precondition(enlarged.maxX == snapped.maxX && enlarged.maxY == snapped.maxY, "resizing preserves a snapped top-right corner")
+    let unchanged = OverlayLayout.frame(preferredSize: preferred, currentFrame: highDensity, visibleFrame: retina, backingScale: 2)
+    precondition(unchanged == highDensity, "repeated screen notifications do not move the overlay")
+}
+
+func checkLyricSegmentation() {
+    func split(_ lines: [LyricLine], duration: Double = 30, width: Double = 15) -> [LyricLine] {
+        LyricSegmentation.split(lines, duration: duration, maxWidth: width, measure: { Double($0.count) })
+    }
+    let text = "alpha beta gamma delta"
+    let original = [LyricLine(time: 10, text: text), LyricLine(time: 20, text: "next")]
+    let parts = split(original)
+    precondition(parts.map(\.text) == ["alpha beta", "gamma delta", "next"], "long entries become two balanced, single-line entries")
+    precondition(parts[0].time == 10 && parts[1].time > 10 && parts[1].time < 20 && parts[2] == original[1], "split stays inside the source line's interval")
+    precondition(parts.prefix(2).map(\.text).joined(separator: " ") == text, "all words remain in order")
+    precondition(LRC.currentIndex(parts, at: parts[1].time - 0.001) == 0 && LRC.currentIndex(parts, at: parts[1].time) == 1, "the halves advance independently, including after a seek")
+    precondition(original.count == 2 && original[0].text == text, "source lyrics are unchanged")
+    precondition(split(original, width: Double(text.count)) == original, "fitting lines keep their original timing")
+    precondition(split([]).isEmpty)
+    let singleWord = [LyricLine(time: 1, text: "oneunbrokenlongword")]
+    precondition(split(singleWord) == singleWord, "never split inside a word")
+    let simultaneous = [LyricLine(time: 10, text: text), LyricLine(time: 10, text: "next")]
+    precondition(split(simultaneous) == simultaneous, "duplicate timestamps cannot produce an overlapping entry")
+    let last = split([original[0]], duration: 12)
+    precondition(last.count == 2 && last[1].time < 12, "the last entry stays inside the track")
+    let noTime = split([original[0]], duration: 10)
+    precondition(noTime == [original[0]], "do not invent time beyond the track")
+    let tinyGap = split([original[0], LyricLine(time: 10.01, text: "next")])
+    precondition(tinyGap.count == 3 && tinyGap[1].time < 10.01, "short intervals remain ordered")
+
+    let timed = LRC.parse("[00:10.00]<00:10.00>alpha <00:10.50>beta <00:12.00>gamma <00:13.00>delta\n[00:20.00]next")
+    let exact = split(timed)
+    precondition(exact[1].time == 12, "use the existing word timestamp for the second half")
+    precondition(exact[0].words == Array(timed[0].words!.prefix(2)), "first-half word timestamps stay unchanged")
+    precondition(exact[1].words?.map(\.offset) == [0, 1], "second-half word offsets are rebased")
+    let fills = WordHighlight.units(for: exact[1], nextTime: 20, at: 12.5)
+    precondition(fills[0].fill == 0.5 && fills[1].fill == 0, "karaoke stays aligned to the source word times")
+
+    let unicode = "Café 👩🏽‍💻 walks along a quiet river"
+    let unicodeParts = split([LyricLine(time: 1, text: unicode)])
+    precondition(unicodeParts.count == 2 && unicodeParts.map(\.text).joined(separator: " ") == unicode, "Unicode words and emoji remain intact")
+}
+
 checkParsing()
 try checkMatching()
 checkLocalization()
@@ -181,4 +264,7 @@ checkPlainEstimate()
 checkCache()
 checkPlayerSelection()
 checkVisibilityPolicy()
+checkWordHighlight()
+checkOverlayLayout()
+checkLyricSegmentation()
 print("LyricsCore checks passed")

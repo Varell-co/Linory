@@ -19,7 +19,8 @@ Play a song in Spotify or Music and allow Linory to control that app when macOS 
 
 - Drag a free area of the overlay to move it. Its position is saved locally.
 - Moving between screens keeps the same readable text size at each screen's pixel density. The overlay fits the usable area and restores your preferred dimensions when space allows.
-- Long lyrics wrap at your chosen font size. Fewer surrounding lines appear when space is tight; a line taller than the lyrics area can be scrolled with click-through turned off.
+- Lyrics stay on one line and shrink to fit their width. Five nearby lines scroll as playback advances.
+- A lyric that would shrink below 60% of your chosen font size is split into two consecutive entries at a word boundary. Split timing uses word timestamps when available and estimates otherwise.
 - Click **⋯** in the overlay, or left-click the menu-bar icon, to open settings.
 - Right-click the menu-bar icon to position the overlay, toggle click-through, or quit. Turn click-through off before dragging or clicking the overlay again.
 - Set background opacity to 0% for floating text. Positive timing offsets show lyrics earlier.

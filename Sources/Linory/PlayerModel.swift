@@ -5,6 +5,7 @@ import os
 final class PlayerModel: ObservableObject {
     @Published var track: Track?
     @Published var lyrics: LoadedLyrics?
+    @Published var artwork: NSImage?
     @Published var clock = PlaybackClock()
     @Published var status: StatusMessage = .waitingForPlayer
     /// Starts at launch, so auto-hide also waits the grace period before hiding an idle overlay.
@@ -65,9 +66,27 @@ final class PlayerModel: ObservableObject {
         return (chosen, result)
     }
 
+    private func loadArtwork(for track: Track, generation requested: Int) {
+        guard let player = Self.players.first(where: { $0.source == track.source }) else { return }
+        let publish: (NSImage?) -> Void = { [weak self] image in
+            DispatchQueue.main.async {
+                guard let self, self.generation == requested else { return }
+                self.artwork = image
+            }
+        }
+        queue.async {
+            switch player.readArtwork() {
+            case .data(let data)?: publish(NSImage(data: data))
+            case .url(let url)?:
+                URLSession.shared.dataTask(with: url) { data, _, _ in publish(data.flatMap(NSImage.init(data:))) }.resume()
+            case nil: publish(nil)
+            }
+        }
+    }
+
     private func clear(_ message: StatusMessage) {
         if track != nil { generation += 1 }
-        track = nil; lyrics = nil; clock.reset(); status = message
+        track = nil; lyrics = nil; artwork = nil; clock.reset(); status = message
         if notPlayingSince == nil { notPlayingSince = Date() }
     }
 
@@ -78,10 +97,12 @@ final class PlayerModel: ObservableObject {
         guard track != snapshot.track else { return }
         track = snapshot.track
         lyrics = nil
+        artwork = nil
         status = .searching
         generation += 1
         let requestedGeneration = generation
         let track = snapshot.track
+        loadArtwork(for: track, generation: requestedGeneration)
         Task { [service] in
             let result = await service.load(track: track)
             await MainActor.run { [weak self] in

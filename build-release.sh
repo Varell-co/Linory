@@ -10,20 +10,20 @@ fi
 # Build each architecture separately so the script also works with Command Line Tools.
 # Separate scratch paths: newer SwiftPM versions share one output folder across triples.
 for ARCH in arm64 x86_64; do
-  swift build -c release --triple "$ARCH-apple-macosx13.0" --product LyricsOverlay --scratch-path ".build/release-$ARCH"
+  swift build -c release --triple "$ARCH-apple-macosx13.0" --product Linory --scratch-path ".build/release-$ARCH"
 done
-ARM_DIR="$(swift build -c release --triple arm64-apple-macosx13.0 --product LyricsOverlay --scratch-path .build/release-arm64 --show-bin-path)"
-INTEL_DIR="$(swift build -c release --triple x86_64-apple-macosx13.0 --product LyricsOverlay --scratch-path .build/release-x86_64 --show-bin-path)"
+ARM_DIR="$(swift build -c release --triple arm64-apple-macosx13.0 --product Linory --scratch-path .build/release-arm64 --show-bin-path)"
+INTEL_DIR="$(swift build -c release --triple x86_64-apple-macosx13.0 --product Linory --scratch-path .build/release-x86_64 --show-bin-path)"
 
-bash build-app.sh
+LINORY_APP_DIR="$PWD" bash build-app.sh
 APP="$PWD/Linory.app"
-lipo -create "$ARM_DIR/LyricsOverlay" "$INTEL_DIR/LyricsOverlay" -output "$APP/Contents/MacOS/LyricsOverlay"
+lipo -create "$ARM_DIR/Linory" "$INTEL_DIR/Linory" -output "$APP/Contents/MacOS/Linory"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
 # Local ad-hoc signature only: this is NOT a Developer ID signature or notarization.
 codesign --force --deep --sign - "$APP"
 codesign --verify --verbose=2 "$APP"
-for ARCH in arm64 x86_64; do lipo "$APP/Contents/MacOS/LyricsOverlay" -verify_arch "$ARCH"; done
+for ARCH in arm64 x86_64; do lipo "$APP/Contents/MacOS/Linory" -verify_arch "$ARCH"; done
 mkdir -p dist
 ARCHIVE="$PWD/dist/Linory-$VERSION-universal.zip"
 rm -f "$ARCHIVE"

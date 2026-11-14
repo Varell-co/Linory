@@ -12,17 +12,18 @@ extension AppLanguage {
 
 func tr(_ key: L10nKey, _ args: CVarArg...) -> String { L10n.string(key, arguments: args, language: .current) }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let model = PlayerModel()
     var overlay: NSPanel!
     var settings: NSWindow!
     var statusItem: NSStatusItem!
-    var statusMenu: NSMenu!
+    private let menuActions = MenuActions()
     /// Persisted so click-through survives relaunch.
     var clickThrough = false {
         didSet {
             UserDefaults.standard.set(clickThrough, forKey: "clickThrough")
             overlay?.ignoresMouseEvents = clickThrough
+            menuActions.clickThrough = clickThrough
         }
     }
     /// Set by the hotkey or menu; always wins over auto-show.
@@ -31,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var manualShowAt: Date?
     private var visibilityTimer: Timer?
     private let hotKey = HotKey()
+    private var isResizingOverlay = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: ["fontSize": 25.0, "opacity": 0.78, "overlayOpacity": 1.0, "offset": 0.0, "overlayWidth": 400.0, "overlayHeight": 240.0, "language": AppLanguage.system.rawValue, "source": SourcePreference.auto.rawValue, "clickThrough": false, "autoHide": false])
@@ -46,17 +48,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             if NSScreen.screens.contains(where: { $0.visibleFrame.intersects(rect) }) { overlay.setFrame(rect, display: true) }
             else { position("topRight") }
         } else { position("topRight") }
+        resize()
+        NotificationCenter.default.addObserver(self, selector: #selector(screenParametersChanged),
+                                               name: NSApplication.didChangeScreenParametersNotification, object: nil)
         clickThrough = UserDefaults.standard.bool(forKey: "clickThrough")
         overlay.orderFrontRegardless()
         buildMenu()
         if !hotKey.register(handler: { [weak self] in self?.toggleVisibility() }) { showHotKeyError() }
         model.start()
-        visibilityTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.applyVisibility() }
+        visibilityTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.applyVisibility(animated: true) }
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             self?.applyLanguage()
         }
     }
-    /// Menu titles are rebuilt in menuNeedsUpdate; these are the strings that stay on screen.
+    /// Strings that stay on screen; the menu popover follows the language by itself.
     private func applyLanguage() {
         statusItem?.button?.toolTip = tr(.statusItemTooltip)
         statusItem?.button?.setAccessibilityLabel(tr(.statusItemDescription))
@@ -78,17 +83,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         return true
     }
     func windowDidMove(_ notification: Notification) { saveFrame() }
+    func windowDidChangeScreen(_ notification: Notification) { resize() }
+    func windowDidChangeBackingProperties(_ notification: Notification) { resize() }
+    @objc private func screenParametersChanged(_ notification: Notification) { resize() }
     private func saveFrame() { if overlay != nil { UserDefaults.standard.set(NSStringFromRect(overlay.frame), forKey: "windowFrame") } }
     func resize() {
-        guard overlay != nil else { return }
-        var frame = overlay.frame
-        let newHeight = UserDefaults.standard.double(forKey: "overlayHeight")
-        frame.origin.y += frame.height - newHeight
-        frame.size = NSSize(width: UserDefaults.standard.double(forKey: "overlayWidth"), height: newHeight)
+        guard overlay != nil, !isResizingOverlay, let screen = overlay.screen ?? NSScreen.main else { return }
+        isResizingOverlay = true
+        defer { isResizingOverlay = false }
+        let preferredSize = NSSize(width: UserDefaults.standard.double(forKey: "overlayWidth"),
+                                   height: UserDefaults.standard.double(forKey: "overlayHeight"))
+        let frame = OverlayLayout.frame(preferredSize: preferredSize, currentFrame: overlay.frame,
+                                        visibleFrame: screen.visibleFrame, backingScale: screen.backingScaleFactor)
+        guard frame != overlay.frame else { return }
         overlay.setFrame(frame, display: true); saveFrame()
     }
     func position(_ corner: String) {
-        let screen = overlay.screen ?? NSScreen.main ?? NSScreen.screens.first!
+        guard let screen = overlay.screen ?? NSScreen.main else { return }
+        resize()
         let area = screen.visibleFrame.insetBy(dx: 16, dy: 16)
         let size = overlay.frame.size
         let x = corner.contains("Right") ? area.maxX - size.width : area.minX
@@ -103,68 +115,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         statusItem.button?.target = self
         statusItem.button?.action = #selector(statusClicked(_:))
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        statusMenu = NSMenu()
-        statusMenu.delegate = self
+        menuActions.toggleOverlay = { [weak self] in self?.toggleVisibility() }
+        menuActions.toggleClickThrough = { [weak self] in self?.toggleClick() }
+        menuActions.moveTo = { [weak self] corner in self?.position(corner) }
+        menuActions.openSettings = { [weak self] in self?.menuWindow.close(); self?.showSettings() }
+        menuActions.quit = { NSApp.terminate(nil) }
     }
-    /// Rebuilt on every open so titles follow the current language and state.
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        guard menu === statusMenu else { return }
-        menu.removeAllItems()
-        let title = NSMenuItem(title: Brand.name, action: nil, keyEquivalent: ""); title.isEnabled = false; menu.addItem(title)
-        menu.addItem(.separator())
-        menu.addItem(item(tr(overlay.isVisible ? .hideOverlay : .showOverlay), #selector(toggleVisibility)))
-        let click = item(tr(.clickThrough), #selector(toggleClick)); click.state = clickThrough ? .on : .off; menu.addItem(click)
-        let corners = NSMenu()
-        for (key, corner) in [(L10nKey.topLeft, "topLeft"), (.topRight, "topRight"), (.bottomLeft, "bottomLeft"), (.bottomRight, "bottomRight")] {
-            let entry = item(tr(key), #selector(selectCorner(_:))); entry.representedObject = corner; corners.addItem(entry)
-        }
-        let positionItem = NSMenuItem(title: tr(.position), action: nil, keyEquivalent: ""); positionItem.submenu = corners; menu.addItem(positionItem)
-        let sources = NSMenu()
-        let selected = UserDefaults.standard.string(forKey: "source") ?? SourcePreference.auto.rawValue
-        for (key, preference) in [(L10nKey.sourceAuto, SourcePreference.auto), (.sourceSpotify, .spotify), (.sourceMusic, .music)] {
-            let entry = item(tr(key), #selector(selectSource(_:))); entry.representedObject = preference.rawValue
-            entry.state = preference.rawValue == selected ? .on : .off; sources.addItem(entry)
-        }
-        let sourceItem = NSMenuItem(title: tr(.source), action: nil, keyEquivalent: ""); sourceItem.submenu = sources; menu.addItem(sourceItem)
-        menu.addItem(.separator())
-        menu.addItem(item(tr(.settingsMenu), #selector(showSettings), key: ","))
-        menu.addItem(item(tr(.quit), #selector(quitApp), key: "q"))
-    }
-    private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: action, keyEquivalent: key); item.target = self; return item
-    }
+    /// The right-click menu: a glass panel matching the overlay (see MenuWindow).
+    private lazy var menuWindow = MenuWindow { [unowned self] in AnyView(MenuPanel(model: self.model, actions: self.menuActions, expanded: $0)) }
+    private func toggleMenu(from button: NSStatusBarButton) { menuWindow.toggle(below: button) }
     @objc func statusClicked(_ sender: NSStatusBarButton) {
         if NSApp.currentEvent?.type == .rightMouseUp {
-            statusItem.menu = statusMenu
-            sender.performClick(nil)
-            statusItem.menu = nil
+            toggleMenu(from: sender)
         } else {
             showSettings()
         }
     }
-    @objc func toggleVisibility() { setUserHidden(overlay.isVisible) }
+    @objc func toggleVisibility() { setUserHidden(isShowing) }
     private func setUserHidden(_ hidden: Bool) {
         userHidden = hidden
         if !hidden { manualShowAt = Date() }
         applyVisibility()
     }
-    private func applyVisibility() {
+    /// Tracks the intended state, so a fade-out in progress counts as hidden.
+    private var isShowing = true { didSet { menuActions.overlayVisible = isShowing } }
+    private func applyVisibility(animated: Bool = false) {
         let show = VisibilityPolicy.shouldShow(
             userHidden: userHidden, autoHide: UserDefaults.standard.bool(forKey: "autoHide"),
             playing: model.clock.playing, hasTrack: model.track != nil,
             notPlayingSince: [model.notPlayingSince, manualShowAt].compactMap { $0 }.max(), now: Date())
-        if show && !overlay.isVisible { overlay.orderFrontRegardless() }
-        if !show && overlay.isVisible { overlay.orderOut(nil) }
+        guard show != isShowing else { return }
+        isShowing = show
+        // Auto-hide fades; the hotkey and menu stay instant, because keyboard actions must never feel delayed.
+        let duration = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? (show ? 0.22 : 0.16) : 0
+        if show {
+            overlay.alphaValue = duration > 0 ? 0 : 1
+            overlay.orderFrontRegardless()
+        }
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
+            overlay.animator().alphaValue = show ? 1 : 0
+        }, completionHandler: { [weak self] in
+            guard let self, !self.isShowing else { return } // shown again mid-fade
+            self.overlay.orderOut(nil)
+            self.overlay.alphaValue = 1
+        })
     }
     @objc func toggleClick() { clickThrough.toggle() }
-    @objc func selectSource(_ sender: NSMenuItem) { if let value = sender.representedObject as? String { UserDefaults.standard.set(value, forKey: "source") } }
-    @objc func selectCorner(_ sender: NSMenuItem) { if let key = sender.representedObject as? String { position(key) } }
     @objc func showSettings() {
         if settings == nil {
             let hosting = NSHostingController(rootView: SettingsView(resize: { [weak self] in self?.resize() }))
-            hosting.sizingOptions = .preferredContentSize // window follows the content height
+            hosting.sizingOptions = .preferredContentSize
             settings = NSWindow(contentViewController: hosting)
-            settings.styleMask = [.titled, .closable]
+            settings.styleMask = [.titled, .closable, .fullSizeContentView]
+            // Glass runs under a transparent title bar, like the Linory concept.
+            settings.titlebarAppearsTransparent = true
+            settings.titleVisibility = .hidden
+            // An (empty) unified toolbar gives the window the large, toolbar-style corner radius
+            // instead of the tight one macOS uses for title-bar-only windows.
+            settings.toolbar = NSToolbar()
+            settings.toolbarStyle = .unified
+            settings.isMovableByWindowBackground = true
+            settings.backgroundColor = .clear
+            settings.isOpaque = false
+            settings.appearance = NSAppearance(named: .darkAqua)
             settings.title = tr(.settingsWindowTitle)
             settings.isReleasedWhenClosed = false
             settings.center()

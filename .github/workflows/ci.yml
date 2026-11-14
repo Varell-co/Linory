@@ -20,7 +20,7 @@ jobs:
       - name: Run core checks
         run: swift run LyricsCoreChecks
       - name: Build app bundle
-        run: bash build-app.sh
+        run: LINORY_APP_DIR="$PWD" bash build-app.sh
       - name: Build universal preview archive
         run: bash build-release.sh "${{ env.VERSION }}"
       - name: Verify packaged app
@@ -31,9 +31,12 @@ jobs:
           plutil -lint "$APP/Contents/Info.plist"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" = "${{ env.VERSION }}"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" = "io.github.mikeleonfox.lyricsoverlay"
+          for KEY in CFBundleName CFBundleDisplayName CFBundleExecutable; do
+            test "$(/usr/libexec/PlistBuddy -c "Print :$KEY" "$APP/Contents/Info.plist")" = "Linory"
+          done
           test -f "$APP/Contents/Resources/Linory.icns"
           codesign --verify --verbose=2 "$APP"
-          for ARCH in arm64 x86_64; do lipo "$APP/Contents/MacOS/LyricsOverlay" -verify_arch "$ARCH"; done
+          for ARCH in arm64 x86_64; do lipo "$APP/Contents/MacOS/Linory" -verify_arch "$ARCH"; done
       - name: Upload preview archive
         uses: actions/upload-artifact@v4
         with:

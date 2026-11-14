@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "LyricsOverlay",
+    name: "Linory",
     platforms: [.macOS(.v13)],
-    products: [.executable(name: "LyricsOverlay", targets: ["LyricsOverlay"])],
+    products: [.executable(name: "Linory", targets: ["Linory"])],
     targets: [
         .target(name: "LyricsCore"),
-        .executableTarget(name: "LyricsOverlay", dependencies: ["LyricsCore"]),
+        .executableTarget(name: "Linory", dependencies: ["LyricsCore"]),
         .executableTarget(name: "LyricsCoreChecks", dependencies: ["LyricsCore"], path: "Checks")
     ]
 )
