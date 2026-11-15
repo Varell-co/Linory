@@ -1,6 +1,6 @@
 cask "linory" do
-  version "0.2.0"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  version "0.3.0"
+  sha256 "7629d5831b0ce4064d62f8422377050c2fe29b1dfd3a8d89f4d185acc0f6a296"
 
   url "https://github.com/MikeLeonFox/LyricsOverlay/releases/download/v#{version}/Linory-#{version}-universal.zip"
   name "Linory"
