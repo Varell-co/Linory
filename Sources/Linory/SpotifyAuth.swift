@@ -204,6 +204,16 @@ final class SpotifyAuth: ObservableObject {
     }
 }
 
+#if DEBUG
+extension SpotifyAuth {
+    /// Debug snapshots only: a connected state without a login.
+    func previewConnect(as name: String) {
+        user = try? JSONDecoder().decode(SpotifyUser.self, from: Data(#"{"id":"preview","display_name":"\#(name)"}"#.utf8))
+        state = .connected(name)
+    }
+}
+#endif
+
 /// The login sheet attaches to the window that was key when Connect was pressed (Settings).
 private final class AnchorProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
     weak var window: NSWindow?

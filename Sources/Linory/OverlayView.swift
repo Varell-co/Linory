@@ -13,6 +13,8 @@ struct OverlayView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var lines: [LyricLine] = []
     @State private var hovering = false
+    /// Debug snapshots only: shows the hover controls without a pointer.
+    var forceControls = false
 
     /// Previous/next lines are the active line scaled down, so the size change can animate as a transform.
     private static let neighborScale: CGFloat = 0.78
@@ -97,10 +99,10 @@ struct OverlayView: View {
     // MARK: Mini-player
 
     /// Only on hover, so the overlay stays lyrics first. Click-through means the user wants to click past it.
-    private var showsControls: Bool { hovering && !clickThrough && model.track != nil }
+    private var showsControls: Bool { (hovering || forceControls) && !clickThrough && model.track != nil }
 
     private var controls: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             // Equal flexible sides keep the transport centred, with or without a heart or chorus button.
             HStack(spacing: 0) {
                 HStack(spacing: 0) {
@@ -127,7 +129,7 @@ struct OverlayView: View {
             }
             Scrubber(model: model, language: language)
         }
-        .padding(.horizontal, 12).padding(.top, 6).padding(.bottom, 4)
+        .padding(.horizontal, 12).padding(.vertical, 8)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.primary.opacity(0.08)))
     }

@@ -48,7 +48,7 @@ struct MenuPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             nowPlaying.padding(.bottom, 6)
-            Divider().padding(.horizontal, 6)
+            Divider().padding(.horizontal, 8)
             toggleRow("rectangle.on.rectangle", t(.showOverlay), isOn: actions.overlayVisible, action: actions.toggleOverlay)
             toggleRow("cursorarrow.motionlines", t(.clickThrough), isOn: actions.clickThrough, action: actions.toggleClickThrough)
             disclosureRow("arrow.up.left.and.arrow.down.right", t(.position), .position)
@@ -59,7 +59,7 @@ struct MenuPanel: View {
             if expanded == .shuffle { shuffleSection.transition(sectionTransition) }
             disclosureRow("moon.zzz", t(.sleepTimer), .sleep, detail: sleep.remaining.map { SleepTimer.format($0) })
             if expanded == .sleep { sleepOptions.transition(sectionTransition) }
-            Divider().padding(.horizontal, 6).padding(.vertical, 4)
+            Divider().padding(.horizontal, 8).padding(.vertical, 4)
             MenuRow(symbol: "gearshape", title: t(.settingsMenu), shortcut: "⌘,", action: actions.openSettings)
                 .keyboardShortcut(",", modifiers: .command)
             MenuRow(symbol: "power", title: "\(t(.quit)) \(Brand.name)", shortcut: "⌘Q", action: actions.quit)
@@ -118,7 +118,8 @@ struct MenuPanel: View {
                 TransportButtons(model: model, language: language, size: 14)
             }
         }
-        .padding(.horizontal, 6).padding(.top, 6)
+        // 8 pt, like the row content, so cover, row icons and section controls share one left edge.
+        .padding(.horizontal, 8).padding(.top, 6)
     }
 
     private func toggleRow(_ symbol: String, _ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
@@ -153,7 +154,7 @@ struct MenuPanel: View {
                 .buttonStyle(PressableStyle(scale: 0.96))
             }
         }
-        .padding(.horizontal, 10).padding(.bottom, 6)
+        .padding(.horizontal, 8).padding(.bottom, 6)
     }
 
     // MARK: True Shuffle
@@ -193,7 +194,7 @@ struct MenuPanel: View {
                 let upNext = measuring ? Array(repeating: (uri: "", info: ShuffleTrackInfo(name: "—", artist: "—", artistID: nil)), count: 3) : shuffle.upNext
                 if !upNext.isEmpty { upNextList(upNext) }
             }
-            .padding(.horizontal, 10).padding(.bottom, 4)
+            .padding(.horizontal, 8).padding(.bottom, 4)
             toggleRow("infinity", t(.shuffleAutoContinue), isOn: autoContinue) { autoContinue.toggle() }
             let current = model.track.map { $0.source == .spotify ? $0.rawID : "" }
             if measuring || (shuffle.currentInShuffle && current == shuffle.currentURI) {
@@ -214,7 +215,7 @@ struct MenuPanel: View {
                     .buttonStyle(.plain).foregroundStyle(Brand.waveBlue)
             }
             .font(.system(size: 12))
-            .padding(.horizontal, 10).padding(.bottom, 6)
+            .padding(.horizontal, 8).padding(.bottom, 6)
         }
     }
 
@@ -317,7 +318,7 @@ struct MenuPanel: View {
                 .disabled(option.mode == .endOfTrack && model.track == nil)
             }
         }
-        .padding(.horizontal, 10).padding(.bottom, 6)
+        .padding(.horizontal, 8).padding(.bottom, 6)
     }
 
     private var sourcePicker: some View {
@@ -327,7 +328,7 @@ struct MenuPanel: View {
             Text(t(.sourceMusic)).tag(SourcePreference.music.rawValue)
         }
         .pickerStyle(.segmented).labelsHidden()
-        .padding(.horizontal, 10).padding(.bottom, 6)
+        .padding(.horizontal, 8).padding(.bottom, 6)
     }
 }
 

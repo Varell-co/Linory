@@ -18,6 +18,11 @@ final class SpotifyLibrary: ObservableObject {
     /// Created with the player model, before the main actor is known to the compiler; see `SpotifyAuth.init`.
     nonisolated init() {}
 
+    #if DEBUG
+    /// Debug snapshots only.
+    func previewLiked(_ liked: Bool) { connected = true; self.liked = liked }
+    #endif
+
     func attach(_ auth: SpotifyAuth) {
         self.auth = auth
         subscription = auth.$state

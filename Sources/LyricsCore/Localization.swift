@@ -349,7 +349,7 @@ public enum L10n {
             .sleepTimer: "Sleep-Timer",
             .sleepOff: "Aus",
             .sleepMinutes: "%ld Min.",
-            .sleepEndOfTrack: "Ende des Titels",
+            .sleepEndOfTrack: "Titelende",
             .sleepPausesIn: "Pausiert in %@",
             .sectionStats: "Deine Musik",
             .statsSubtitle: "Deine meistgehörten Künstler und Titel auf Spotify. Klicke einen an, um ihn in Spotify zu öffnen.",

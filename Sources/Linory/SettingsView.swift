@@ -28,6 +28,12 @@ struct SettingsView: View {
     @State private var statsRange = SpotifyTimeRange.short
     var resize: () -> Void
 
+    init(auth: SpotifyAuth, resize: @escaping () -> Void, pane: Pane = .general) {
+        _auth = ObservedObject(wrappedValue: auth)
+        self.resize = resize
+        _pane = State(initialValue: pane)
+    }
+
     private var language: AppLanguage { (AppLanguage(rawValue: languageSetting) ?? .system).resolved(preferredLanguages: Locale.preferredLanguages) }
     private func t(_ key: L10nKey) -> String { L10n.string(key, language: language) }
     private var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev" }
