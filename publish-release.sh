@@ -7,12 +7,14 @@ VERSION="${1:-$(tr -d '[:space:]' < VERSION)}"
 TAG="v$VERSION"
 ARCHIVE="dist/Linory-$VERSION-universal.zip"
 CASK="Casks/linory.rb"
+# Pinned: with an upstream remote, gh would otherwise default to the original repo.
+REPO="MikeLeonFox/LyricsOverlay"
 
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "Working tree is not clean; commit or stash first." >&2
   exit 1
 fi
-if gh release view "$TAG" >/dev/null 2>&1; then
+if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
   echo "Release $TAG already exists." >&2
   exit 1
 fi
@@ -25,7 +27,10 @@ NOTES="$(mktemp)"
 trap 'rm -f "$NOTES"' EXIT
 awk '/^---$/{exit} {print}' RELEASE_NOTES.md > "$NOTES"
 
-gh release create "$TAG" "$ARCHIVE" --title "Linory $TAG" --notes-file "$NOTES" --target "$(git rev-parse HEAD)"
+# Push the tag over git: creating it through the API needs the extra "workflow" token scope.
+git tag "$TAG"
+git push origin "$TAG"
+gh release create "$TAG" "$ARCHIVE" -R "$REPO" --verify-tag --title "Linory $TAG" --notes-file "$NOTES"
 
 sed -i '' -E "s/^  version \".*\"/  version \"$VERSION\"/; s/^  sha256 \".*\"/  sha256 \"$SHA\"/" "$CASK"
 git add "$CASK"
