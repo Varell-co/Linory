@@ -10,6 +10,8 @@ final class PlayerModel: ObservableObject {
     @Published var status: StatusMessage = .waitingForPlayer
     /// Starts at launch, so auto-hide also waits the grace period before hiding an idle overlay.
     @Published var notPlayingSince: Date? = Date()
+    /// Called on the main thread after the current track changes.
+    var onTrackChange: ((Track) -> Void)?
     private var generation = 0
     private var pending = false
     private let queue = DispatchQueue(label: "player-reader")
@@ -96,6 +98,7 @@ final class PlayerModel: ObservableObject {
         if snapshot.playing { notPlayingSince = nil } else if notPlayingSince == nil { notPlayingSince = Date() }
         guard track != snapshot.track else { return }
         track = snapshot.track
+        onTrackChange?(snapshot.track)
         lyrics = nil
         artwork = nil
         status = .searching

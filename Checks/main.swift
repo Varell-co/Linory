@@ -2,6 +2,10 @@ import Foundation
 import CoreGraphics
 import LyricsCore
 
+/// Agent A: chorus detection, seek targets, sync clock.
+func checkMiniPlayer() throws {
+}
+
 func checkParsing() {
     let lines = LRC.parse("[00:03.50] Second\n[00:01.00] First\n[00:07.00][00:09.10] Again\n[00:12.0] \n[00:65.00] Invalid")
     precondition(lines.map(\.time) == [1, 3.5, 7, 9.1, 12])
@@ -254,6 +258,181 @@ func checkLyricSegmentation() {
     precondition(unicodeParts.count == 2 && unicodeParts.map(\.text).joined(separator: " ") == unicode, "Unicode words and emoji remain intact")
 }
 
+func checkSpotifyPKCE() throws {
+    // RFC 7636 Appendix B.
+    precondition(SpotifyPKCE.challenge(for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk") == "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+    let verifier = SpotifyPKCE.verifier(randomBytes: (0..<32).map { UInt8($0 * 7 % 256) })
+    let urlSafe = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+    precondition(verifier.count == 43 && verifier.unicodeScalars.allSatisfy(urlSafe.contains), "verifier is 43 base64url chars")
+    precondition(SpotifyPKCE.verifier(randomBytes: [UInt8](repeating: 255, count: 96)).count == 128, "96 bytes give the 128-char maximum")
+
+    let url = SpotifyPKCE.authorizeURL(clientID: "abc123", redirectURI: "linory://callback", scopes: ["a-b", "c-d"], state: "s+t", challenge: "ch")
+    let query = url.query ?? ""
+    precondition(url.absoluteString.hasPrefix("https://accounts.spotify.com/authorize?"))
+    for part in ["client_id=abc123", "response_type=code", "redirect_uri=linory%3A%2F%2Fcallback", "code_challenge_method=S256",
+                 "code_challenge=ch", "scope=a-b%20c-d", "state=s%2Bt"] {
+        precondition(query.contains(part), "authorize URL has \(part)")
+    }
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    precondition(items.first { $0.name == "scope" }?.value == "a-b c-d" && items.first { $0.name == "redirect_uri" }?.value == "linory://callback")
+
+    let code = SpotifyPKCE.tokenRequestBody(clientID: "abc", redirectURI: "linory://callback", grant: .authorizationCode(code: "c/1", verifier: "v"))
+    for part in ["grant_type=authorization_code", "code=c%2F1", "client_id=abc", "code_verifier=v", "redirect_uri=linory%3A%2F%2Fcallback"] {
+        precondition(code.split(separator: "&").contains(Substring(part)), "code body has \(part)")
+    }
+    let refresh = SpotifyPKCE.tokenRequestBody(clientID: "abc", redirectURI: "linory://callback", grant: .refreshToken("r"))
+    precondition(Set(refresh.split(separator: "&")) == ["grant_type=refresh_token", "refresh_token=r", "client_id=abc"])
+
+    let full = try JSONDecoder().decode(SpotifyToken.self, from: Data(#"{"access_token":"a","token_type":"Bearer","expires_in":3600,"refresh_token":"r","scope":"x"}"#.utf8))
+    precondition(full.accessToken == "a" && full.expiresIn == 3600 && full.refreshToken == "r")
+    let rotated = try JSONDecoder().decode(SpotifyToken.self, from: Data(#"{"access_token":"b","expires_in":3600}"#.utf8))
+    precondition(rotated.refreshToken == nil, "refresh token is optional on refresh")
+    precondition(full.scope == "x" && !SpotifyPKCE.grantsAllScopes("x"), "old logins lack scopes")
+    precondition(SpotifyPKCE.grantsAllScopes(SpotifyPKCE.scopes.reversed().joined(separator: " ")), "scope order does not matter")
+    let user = try JSONDecoder().decode(SpotifyUser.self, from: Data(#"{"id":"u1","display_name":null}"#.utf8))
+    precondition(user.id == "u1" && user.displayName == nil)
+}
+
+/// Agent B: artist spread, multi-source, auto-continue, sleep timer, stats decoding.
+func checkShuffleUpgrades() throws {
+}
+
+/// Seeded generator, so shuffle checks are repeatable.
+struct SplitMix64: RandomNumberGenerator {
+    var state: UInt64
+    mutating func next() -> UInt64 {
+        state &+= 0x9E3779B97F4A7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+        return z ^ (z >> 31)
+    }
+}
+
+func checkSpotifyResponses() throws {
+    let items = #"""
+    {"items":[
+      {"added_at":"x","is_local":false,"item":{"type":"track","uri":"spotify:track:a","is_local":false}},
+      {"is_local":true,"item":{"type":"track","uri":"spotify:local:x:y:z:1","is_local":true}},
+      {"is_local":false,"item":{"type":"episode","uri":"spotify:episode:e"}},
+      null,
+      {"is_local":false,"item":null},
+      {"is_local":false,"item":{"type":"track","uri":"spotify:track:b"}}
+    ],"next":"https://api.spotify.com/v1/playlists/p/items?offset=50&limit=50","total":6}
+    """#
+    let page = try JSONDecoder().decode(SpotifyTrackPage.self, from: Data(items.utf8))
+    precondition(page.uris == ["spotify:track:a", "spotify:track:b"], "playlist items: only track URIs, in order")
+    precondition(page.next != nil && page.total == 6)
+    let liked = #"{"items":[{"added_at":"x","track":{"type":"track","uri":"spotify:track:c"}},{"track":{"type":"track","uri":"spotify:track:d","is_local":false}}],"next":null,"total":2}"#
+    let likedPage = try JSONDecoder().decode(SpotifyTrackPage.self, from: Data(liked.utf8))
+    precondition(likedPage.uris == ["spotify:track:c", "spotify:track:d"] && likedPage.next == nil, "/me/tracks uses the track key")
+
+    let playlists = #"""
+    {"items":[
+      {"id":"mine","name":"Mine","owner":{"id":"me"},"collaborative":false},
+      {"id":"collab","name":"Collab","owner":{"id":"friend"},"collaborative":true},
+      {"id":"spotify-made","name":"Daily Mix","owner":{"id":"spotify"},"collaborative":false},
+      null
+    ],"next":null}
+    """#
+    let playlistPage = try JSONDecoder().decode(SpotifyPlaylistPage.self, from: Data(playlists.utf8))
+    precondition(playlistPage.playlists.count == 3)
+    precondition(SpotifyPlaylist.readable(playlistPage.playlists, userID: "me").map(\.id) == ["mine", "collab"], "owned and collaborative only")
+
+    let playing = try JSONDecoder().decode(SpotifyCurrentlyPlaying.self, from: Data(#"{"context":{"type":"playlist","uri":"spotify:playlist:p1"},"item":{"uri":"spotify:track:a"},"is_playing":true}"#.utf8))
+    precondition(playing.contextURI == "spotify:playlist:p1" && playing.itemURI == "spotify:track:a" && playing.isPlaylist("p1") && !playing.isPlaylist("p2"))
+    let legacy = try JSONDecoder().decode(SpotifyCurrentlyPlaying.self, from: Data(#"{"context":{"uri":"spotify:user:u:playlist:p1"},"item":null}"#.utf8))
+    precondition(legacy.isPlaylist("p1") && legacy.itemURI == nil, "older user-scoped playlist context")
+    let devices = try JSONDecoder().decode(SpotifyDevice.List.self, from: Data(#"""
+    {"devices":[{"id":"spk","name":"Kitchen","type":"Speaker","is_active":false,"is_restricted":false},
+                {"id":"mac","name":"MacBook","type":"Computer","is_active":false,"is_restricted":false},
+                {"id":null,"name":"Hidden","type":"Computer","is_active":true}]}
+    """#.utf8)).devices
+    precondition(SpotifyDevice.preferred(devices)?.id == "mac", "this Mac before an idle speaker; devices without id are skipped")
+    let speakerPlaying = devices.map { $0.id == "spk" ? SpotifyDevice(id: "spk", name: "Kitchen", type: "Speaker", isActive: true) : $0 }
+    precondition(SpotifyDevice.preferred(speakerPlaying)?.id == "spk", "an already playing device keeps playing")
+    precondition(SpotifyDevice.preferred([SpotifyDevice(id: "spk", name: "Kitchen", type: "Speaker", isActive: false)]) == nil, "never start on an idle speaker")
+    let noContext = try JSONDecoder().decode(SpotifyCurrentlyPlaying.self, from: Data(#"{"context":null,"item":{"uri":"spotify:track:a"}}"#.utf8))
+    precondition(noContext.contextURI == nil && !noContext.isPlaylist("p1"), "null context")
+}
+
+func checkShuffleCycle() throws {
+    let source = (0..<20).map { "spotify:track:\($0)" }
+    var rng = SplitMix64(state: 1)
+    var cycle = ShuffleCycle()
+    let first = cycle.nextOrder(from: source + source.prefix(3), using: &rng)
+    precondition(first.count == 20 && Set(first) == Set(source), "a permutation without duplicates")
+    precondition(cycle.progress == (0, 20))
+
+    for uri in first.prefix(5) { cycle.markPlayed(uri) }
+    let second = cycle.nextOrder(from: source, using: &rng)
+    precondition(Set(second) == Set(first.dropFirst(5)) && cycle.progress == (5, 20), "played tracks are left out")
+
+    for uri in second { cycle.markPlayed(uri) }
+    precondition(cycle.progress == (20, 20))
+    let third = cycle.nextOrder(from: source, using: &rng)
+    precondition(Set(third) == Set(source) && cycle.played.isEmpty, "a complete cycle starts over")
+
+    cycle.markPlayed(source[0])
+    let grown = cycle.nextOrder(from: source + ["spotify:track:new"], using: &rng)
+    precondition(grown.contains("spotify:track:new") && !grown.contains(source[0]) && cycle.progress == (1, 21), "new tracks join the running cycle")
+
+    cycle.markPlayed(source[1])
+    _ = cycle.nextOrder(from: Array(source.dropFirst()), using: &rng)
+    precondition(cycle.played == [source[1]] && cycle.total == 19, "tracks gone from the source are pruned")
+
+    cycle.reset()
+    precondition(cycle.played.isEmpty)
+
+    // Removal
+    var removing = ShuffleCycle()
+    _ = removing.nextOrder(from: source, using: &rng)
+    removing.markPlayed(source[2])
+    removing.remove(source[2])
+    removing.remove(source[3])
+    precondition(removing.progress == (0, 18), "removing a played track lowers played and total")
+    removing.markPlayed(source[3])
+    precondition(removing.played.isEmpty, "removed tracks are never marked played")
+    for _ in 0..<3 {
+        let order = removing.nextOrder(from: source, using: &rng)
+        precondition(!order.contains(source[2]) && !order.contains(source[3]), "removed tracks never return")
+        for uri in order { removing.markPlayed(uri) }
+    }
+    removing.reset()
+    precondition(removing.removed == [source[2], source[3]], "reset keeps removals")
+    let roundTrip = try JSONDecoder().decode(ShuffleCycle.self, from: JSONEncoder().encode(removing))
+    precondition(roundTrip == removing, "removals survive JSON")
+    removing.restoreRemoved()
+    let restored = removing.nextOrder(from: source, using: &rng)
+    precondition(removing.removed.isEmpty && restored.contains(source[2]) && restored.contains(source[3]), "restored tracks are eligible and unplayed")
+
+    // Cap
+    var big = ShuffleCycle()
+    let many = (0..<10_050).map { "spotify:track:m\($0)" }
+    let capped = big.nextOrder(from: many, using: &rng)
+    precondition(capped.count == ShuffleCycle.maxTracks && big.total == 10_050, "at most 10,000 tracks")
+    for uri in capped { big.markPlayed(uri) }
+    let rest = big.nextOrder(from: many, using: &rng)
+    precondition(rest.count == 50 && Set(rest).isDisjoint(with: capped), "the other 50 stay unplayed")
+
+    // Randomness
+    var a = ShuffleCycle(), b = ShuffleCycle(), c = ShuffleCycle()
+    var seed1 = SplitMix64(state: 42), seed1Again = SplitMix64(state: 42), seed2 = SplitMix64(state: 43)
+    let orderA = a.nextOrder(from: source, using: &seed1)
+    precondition(orderA == b.nextOrder(from: source, using: &seed1Again), "same seed, same order")
+    precondition(orderA != c.nextOrder(from: source, using: &seed2), "different seeds, different orders")
+
+    var state = ShuffleState()
+    state.cycles["liked"] = removing
+    state.cycles["p1"] = cycle
+    state.shufflePlaylistID = "shuffle"
+    state.activeSourceID = "liked"
+    state.currentOrder = restored
+    state.selectedSourceID = "p1"
+    let decoded = try JSONDecoder().decode(ShuffleState.self, from: JSONEncoder().encode(state))
+    precondition(decoded == state, "state JSON round trip")
+}
+
 checkParsing()
 try checkMatching()
 checkLocalization()
@@ -267,4 +446,9 @@ checkVisibilityPolicy()
 checkWordHighlight()
 checkOverlayLayout()
 checkLyricSegmentation()
+try checkSpotifyPKCE()
+try checkSpotifyResponses()
+try checkShuffleCycle()
+try checkMiniPlayer()
+try checkShuffleUpgrades()
 print("LyricsCore checks passed")

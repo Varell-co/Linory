@@ -25,7 +25,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
-  <key>NSAppleEventsUsageDescription</key><string>Linory reads the current track and playback position from Spotify or Music to show synchronized lyrics.</string>
+  <key>NSAppleEventsUsageDescription</key><string>Linory reads the current track from Spotify or Music to show synchronized lyrics, and starts your True Shuffle playlist in Spotify.</string>
 </dict></plist>
 PLIST
 codesign --force --deep --sign - "$APP"

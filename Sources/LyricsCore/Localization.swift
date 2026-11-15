@@ -31,6 +31,19 @@ public enum L10nKey: String, CaseIterable {
     // Status messages
     case statusWaitingForPlayer, statusOpenPlayer, statusAutomationDenied, statusPlayerError
     case statusNoTrack, statusSearching, statusNetworkError, statusNoLyrics, statusInstrumental, statusNotSynced
+    // Settings ▸ Spotify
+    case sectionSpotify, spotifySubtitle, spotifyClientID, spotifyRedirectURI, spotifyCopy, spotifyConnect, spotifyDisconnect
+    case spotifyConnected, spotifyNotConnected, spotifyConnecting, spotifyLoginFailed, spotifyReconnectHint, spotifyReconnect
+    case spotifyGuideTitle, spotifyGuideStep1, spotifyGuideStep2, spotifyGuideStep3, spotifyGuideStep4, spotifyPremiumNote
+    // True Shuffle
+    case trueShuffle, shuffleSourceLiked, shufflePlay, shuffleProgress, shuffleReset, shuffleLoading, shuffleBusy, shuffleEmpty
+    case shuffleConnectHint, shuffleOpenSettings, shufflePlaylistName, shufflePlaylistDescription
+    case shuffleErrorAuth, shuffleErrorNetwork, shuffleErrorAutomation, shuffleErrorPremium, shuffleErrorHTTP, shuffleErrorPlayback
+    case shuffleRemove, shuffleRestore, shuffleKeep, shuffleKeptName, shuffleKept
+    // MARK: Mini-player keys (agent A adds cases below)
+
+    // MARK: Shuffle upgrades, sleep timer and stats keys (agent B adds cases below)
+
 }
 
 public enum L10n {
@@ -117,6 +130,52 @@ public enum L10n {
             .hotKeyHint: "Show or hide the lyrics overlay.",
             .timingHint: "Positive values show lyrics earlier.",
             .privacyNote: "Song title, artist, album and duration are sent to LRCLIB to find lyrics. Results are cached on this Mac.",
+            .sectionSpotify: "Spotify",
+            .spotifySubtitle: "Connect your own Spotify app to use True Shuffle.",
+            .spotifyClientID: "Client ID",
+            .spotifyRedirectURI: "Redirect URI",
+            .spotifyCopy: "Copy",
+            .spotifyConnect: "Connect Spotify",
+            .spotifyDisconnect: "Disconnect",
+            .spotifyConnected: "Connected as %@",
+            .spotifyNotConnected: "Not connected",
+            .spotifyConnecting: "Connecting…",
+            .spotifyLoginFailed: "Login failed: %@",
+            .spotifyReconnectHint: "Reconnect once so Linory can start True Shuffle reliably.",
+            .spotifyReconnect: "Reconnect",
+            .spotifyGuideTitle: "How to get a Client ID",
+            .spotifyGuideStep1: "Open [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard).",
+            .spotifyGuideStep2: "Create an app and select “Web API”.",
+            .spotifyGuideStep3: "Add the redirect URI above and save.",
+            .spotifyGuideStep4: "Copy the Client ID here and press Connect.",
+            .spotifyPremiumNote: "Requires Spotify Premium on your account.",
+            .trueShuffle: "True Shuffle",
+            .shuffleSourceLiked: "Liked Songs",
+            .shufflePlay: "Shuffle & play",
+            .shuffleProgress: "%ld of %ld played",
+            .shuffleReset: "Reset",
+            .shuffleLoading: "Loading tracks…",
+            .shuffleBusy: "Shuffling %ld tracks…",
+            .shuffleEmpty: "This source has no tracks to shuffle.",
+            .shuffleConnectHint: "Connect Spotify in Settings to use True Shuffle.",
+            .shuffleOpenSettings: "Open",
+            .shufflePlaylistName: "Linory Shuffle",
+            .shufflePlaylistDescription: "True Shuffle by Linory. Rewritten on every shuffle.",
+            .shuffleErrorAuth: "Spotify login expired. Reconnect in Settings.",
+            .shuffleErrorNetwork: "Spotify could not be reached. Check your internet connection.",
+            .shuffleErrorAutomation: "Allow Linory to control Spotify: System Settings → Privacy & Security → Automation.",
+            .shuffleErrorPremium: "Spotify refused the request. Your app needs Premium and your account on its user list.",
+            .shuffleErrorHTTP: "Spotify returned an error (%ld).",
+            .shuffleErrorPlayback: "Spotify could not start playback: %@",
+            .shuffleRemove: "Remove from shuffle",
+            .shuffleRestore: "Restore removed (%ld)",
+            .shuffleKeep: "Keep this shuffle",
+            .shuffleKeptName: "%@ · Shuffled %@",
+            .shuffleKept: "Saved as “%@”",
+            // MARK: en mini-player (agent A)
+
+            // MARK: en shuffle upgrades, sleep timer, stats (agent B)
+
         ],
         .de: [
             .hideOverlay: "Overlay ausblenden",
@@ -187,6 +246,52 @@ public enum L10n {
             .hotKeyHint: "Lyrics-Overlay ein- oder ausblenden.",
             .timingHint: "Positive Werte zeigen die Lyrics früher.",
             .privacyNote: "Songtitel, Interpret, Album und Dauer werden zur Suche an LRCLIB gesendet. Ergebnisse werden auf diesem Mac zwischengespeichert.",
+            .sectionSpotify: "Spotify",
+            .spotifySubtitle: "Verbinde deine eigene Spotify-App, um True Shuffle zu nutzen.",
+            .spotifyClientID: "Client-ID",
+            .spotifyRedirectURI: "Redirect-URI",
+            .spotifyCopy: "Kopieren",
+            .spotifyConnect: "Spotify verbinden",
+            .spotifyDisconnect: "Trennen",
+            .spotifyConnected: "Verbunden als %@",
+            .spotifyNotConnected: "Nicht verbunden",
+            .spotifyConnecting: "Verbinde …",
+            .spotifyLoginFailed: "Anmeldung fehlgeschlagen: %@",
+            .spotifyReconnectHint: "Verbinde dich einmal neu, damit Linory True Shuffle zuverlässig starten kann.",
+            .spotifyReconnect: "Neu verbinden",
+            .spotifyGuideTitle: "So bekommst du eine Client-ID",
+            .spotifyGuideStep1: "Öffne [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard).",
+            .spotifyGuideStep2: "Erstelle eine App und wähle „Web API“.",
+            .spotifyGuideStep3: "Füge die Redirect-URI von oben hinzu und speichere.",
+            .spotifyGuideStep4: "Kopiere die Client-ID hierher und klicke auf Verbinden.",
+            .spotifyPremiumNote: "Erfordert Spotify Premium für dein Konto.",
+            .trueShuffle: "True Shuffle",
+            .shuffleSourceLiked: "Lieblingssongs",
+            .shufflePlay: "Mischen & abspielen",
+            .shuffleProgress: "%ld von %ld gespielt",
+            .shuffleReset: "Zurücksetzen",
+            .shuffleLoading: "Lade Titel …",
+            .shuffleBusy: "Mische %ld Titel …",
+            .shuffleEmpty: "Diese Quelle hat keine Titel zum Mischen.",
+            .shuffleConnectHint: "Verbinde Spotify in den Einstellungen, um True Shuffle zu nutzen.",
+            .shuffleOpenSettings: "Öffnen",
+            .shufflePlaylistName: "Linory Shuffle",
+            .shufflePlaylistDescription: "True Shuffle von Linory. Wird bei jedem Mischen neu geschrieben.",
+            .shuffleErrorAuth: "Spotify-Anmeldung abgelaufen. Verbinde dich in den Einstellungen neu.",
+            .shuffleErrorNetwork: "Spotify ist nicht erreichbar. Prüfe deine Internetverbindung.",
+            .shuffleErrorAutomation: "Erlaube Linory, Spotify zu steuern: Systemeinstellungen → Datenschutz & Sicherheit → Automation.",
+            .shuffleErrorPremium: "Spotify hat die Anfrage abgelehnt. Deine App braucht Premium und dein Konto auf ihrer Nutzerliste.",
+            .shuffleErrorHTTP: "Spotify hat einen Fehler gemeldet (%ld).",
+            .shuffleErrorPlayback: "Spotify konnte die Wiedergabe nicht starten: %@",
+            .shuffleRemove: "Aus Shuffle entfernen",
+            .shuffleRestore: "Entfernte wiederherstellen (%ld)",
+            .shuffleKeep: "Diesen Shuffle behalten",
+            .shuffleKeptName: "%@ · Gemischt %@",
+            .shuffleKept: "Gespeichert als „%@“",
+            // MARK: de mini-player (agent A)
+
+            // MARK: de shuffle upgrades, sleep timer, stats (agent B)
+
         ],
     ]
 }

@@ -17,18 +17,25 @@ final class MenuActions: ObservableObject {
 struct MenuPanel: View {
     @ObservedObject var model: PlayerModel
     @ObservedObject var actions: MenuActions
+    @ObservedObject var auth: SpotifyAuth
+    @ObservedObject var shuffle: ShuffleController
+    /// Renders every optional row, so the window can be sized for the tallest layout (see MenuWindow).
+    private let measuring: Bool
     @AppStorage("source") private var source = SourcePreference.auto.rawValue
     @AppStorage("language") private var languageSetting = AppLanguage.system.rawValue
     @State private var expanded: Section?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false
 
-    enum Section: CaseIterable { case position, source }
+    enum Section: CaseIterable { case position, source, shuffle }
 
-    init(model: PlayerModel, actions: MenuActions, expanded: Section? = nil) {
+    init(model: PlayerModel, actions: MenuActions, auth: SpotifyAuth, shuffle: ShuffleController, expanded: Section? = nil, measuring: Bool = false) {
         _model = ObservedObject(wrappedValue: model)
         _actions = ObservedObject(wrappedValue: actions)
+        _auth = ObservedObject(wrappedValue: auth)
+        _shuffle = ObservedObject(wrappedValue: shuffle)
         _expanded = State(initialValue: expanded)
+        self.measuring = measuring
     }
 
     private var language: AppLanguage { (AppLanguage(rawValue: languageSetting) ?? .system).resolved(preferredLanguages: Locale.preferredLanguages) }
@@ -44,6 +51,8 @@ struct MenuPanel: View {
             if expanded == .position { cornerGrid.transition(sectionTransition) }
             disclosureRow("music.note.list", t(.source), .source)
             if expanded == .source { sourcePicker.transition(sectionTransition) }
+            disclosureRow("shuffle", t(.trueShuffle), .shuffle)
+            if expanded == .shuffle { shuffleSection.transition(sectionTransition) }
             Divider().padding(.horizontal, 6).padding(.vertical, 4)
             MenuRow(symbol: "gearshape", title: t(.settingsMenu), shortcut: "⌘,", action: actions.openSettings)
                 .keyboardShortcut(",", modifiers: .command)
@@ -58,6 +67,8 @@ struct MenuPanel: View {
         // Opens from the menu-bar icon above it: a slight scale from the top, never from nothing.
         .scaleEffect(appeared || reduceMotion ? 1 : 0.96, anchor: .top)
         .onAppear { withAnimation(Motion.easeOut(0.22)) { appeared = true } }
+        .onChange(of: expanded) { section in if section == .shuffle { shuffle.refreshSources() } }
+        .onChange(of: auth.isConnected) { connected in if connected && expanded == .shuffle { shuffle.refreshSources() } }
     }
 
     private var sectionTransition: AnyTransition {
@@ -123,6 +134,88 @@ struct MenuPanel: View {
             }
         }
         .padding(.horizontal, 10).padding(.bottom, 6)
+    }
+
+    // MARK: True Shuffle
+
+    @ViewBuilder private var shuffleSection: some View {
+        if auth.isConnected || measuring {
+            VStack(alignment: .leading, spacing: 6) {
+                Picker("", selection: Binding(get: { shuffle.selectedSourceID }, set: { shuffle.select($0) })) {
+                    ForEach(pickerSources) { source in Text(source.name ?? t(.shuffleSourceLiked)).tag(source.id) }
+                }
+                .pickerStyle(.menu).labelsHidden()
+                .disabled(shuffle.activity != nil)
+                Button(action: shuffle.shuffleAndPlay) {
+                    HStack(spacing: 6) {
+                        if shuffle.activity != nil { ProgressView().controlSize(.mini) } else { Image(systemName: "shuffle") }
+                        Text(t(.shufflePlay))
+                    }
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 7)
+                    .background(Brand.waveBlue.opacity(shuffle.activity == nil ? 1 : 0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableStyle(scale: 0.97))
+                .disabled(shuffle.activity != nil)
+                shuffleStatus
+            }
+            .padding(.horizontal, 10).padding(.bottom, 4)
+            let current = model.track.map { $0.source == .spotify ? $0.rawID : "" }
+            if measuring || (shuffle.currentInShuffle && current == shuffle.currentURI) {
+                MenuRow(symbol: "minus.circle", title: t(.shuffleRemove), action: shuffle.removeCurrent)
+            }
+            if measuring || shuffle.hasShuffle {
+                MenuRow(symbol: "square.and.arrow.down", title: t(.shuffleKeep), action: shuffle.keepShuffle)
+            }
+            let removed = shuffle.selectedCycle.removed.count
+            if measuring || removed > 0 {
+                MenuRow(symbol: "arrow.uturn.backward", title: L10n.string(.shuffleRestore, removed, language: language), action: shuffle.restoreRemoved)
+            }
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(t(.shuffleConnectHint)).fixedSize(horizontal: false, vertical: true).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Button("\(t(.shuffleOpenSettings)) ›", action: actions.openSettings)
+                    .buttonStyle(.plain).foregroundStyle(Brand.waveBlue)
+            }
+            .font(.system(size: 12))
+            .padding(.horizontal, 10).padding(.bottom, 6)
+        }
+    }
+
+    /// Before the playlists load, a remembered playlist still needs a tag, or the picker shows nothing.
+    private var pickerSources: [ShuffleSource] {
+        let sources = shuffle.sources
+        if sources.contains(where: { $0.id == shuffle.selectedSourceID }) { return sources }
+        return sources + [ShuffleSource(id: shuffle.selectedSourceID, name: "…")]
+    }
+
+    @ViewBuilder private var shuffleStatus: some View {
+        let progress = shuffle.selectedCycle.progress
+        Group {
+            if measuring {
+                Text(t(.shuffleErrorPremium)).fixedSize(horizontal: false, vertical: true)
+            } else if let activity = shuffle.activity {
+                switch activity {
+                case .loading: Text(t(.shuffleLoading))
+                case .shuffling(let count): Text(L10n.string(.shuffleBusy, count, language: language))
+                case .working: Text(verbatim: "…")
+                }
+            } else if let notice = shuffle.notice {
+                Text(notice.text(language: language))
+                    .foregroundStyle(notice.isError ? Color.orange : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if progress.total > 0 || progress.played > 0 {
+                HStack(spacing: 4) {
+                    Text(L10n.string(.shuffleProgress, progress.played, progress.total, language: language))
+                    Text(verbatim: "·")
+                    Button(t(.shuffleReset), action: shuffle.reset).buttonStyle(.plain).foregroundStyle(Brand.waveBlue)
+                }
+            }
+        }
+        .font(.system(size: 11.5)).foregroundStyle(.secondary).monospacedDigit()
     }
 
     private var sourcePicker: some View {

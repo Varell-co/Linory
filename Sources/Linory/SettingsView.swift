@@ -4,7 +4,7 @@ import os
 
 /// Dark glass settings with a sidebar, following the Linory UI concept.
 struct SettingsView: View {
-    enum Pane: CaseIterable { case general, overlay, timing, about }
+    enum Pane: CaseIterable { case general, overlay, timing, spotify, about }
 
     @AppStorage("fontSize") private var fontSize = 25.0
     @AppStorage("opacity") private var opacity = 0.78
@@ -15,6 +15,7 @@ struct SettingsView: View {
     @AppStorage("language") private var languageSetting = AppLanguage.system.rawValue
     @AppStorage("source") private var source = SourcePreference.auto.rawValue
     @AppStorage("autoHide") private var autoHide = false
+    @AppStorage("spotifyClientID") private var clientID = ""
     @State private var pane = Pane.general
     @Namespace private var selection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -22,6 +23,7 @@ struct SettingsView: View {
     @State private var loginNeedsApproval = LoginItem.requiresApproval
     @State private var loginError: String?
     private let log = Logger(subsystem: LyricsService.subsystem, category: "login")
+    @ObservedObject var auth: SpotifyAuth
     var resize: () -> Void
 
     private var language: AppLanguage { (AppLanguage(rawValue: languageSetting) ?? .system).resolved(preferredLanguages: Locale.preferredLanguages) }
@@ -57,6 +59,8 @@ struct SettingsView: View {
         .environment(\.colorScheme, .dark)
         .onChange(of: width) { _ in resize() }
         .onChange(of: height) { _ in resize() }
+        // A login belongs to one Client ID.
+        .onChange(of: clientID) { _ in if auth.state != .disconnected { auth.disconnect() } }
         .onAppear(perform: refreshLogin)
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in refreshLogin() }
     }
@@ -103,6 +107,7 @@ struct SettingsView: View {
         case .general: return t(.sectionGeneral)
         case .overlay: return t(.sectionAppearance)
         case .timing: return t(.sectionTiming)
+        case .spotify: return t(.sectionSpotify)
         case .about: return t(.sectionAbout)
         }
     }
@@ -111,6 +116,7 @@ struct SettingsView: View {
         case .general: return t(.generalSubtitle)
         case .overlay: return t(.overlaySubtitle)
         case .timing: return t(.timingSubtitle)
+        case .spotify: return t(.spotifySubtitle)
         case .about: return t(.aboutSubtitle)
         }
     }
@@ -119,6 +125,7 @@ struct SettingsView: View {
         case .general: return "slider.horizontal.3"
         case .overlay: return "square.3.layers.3d"
         case .timing: return "metronome"
+        case .spotify: return "music.note.house"
         case .about: return "info.circle"
         }
     }
@@ -177,6 +184,8 @@ struct SettingsView: View {
         case .timing:
             card { slider(t(.timingOffset), $offset, -5...5, suffix: " s", decimals: 1) }
             Text(t(.timingHint)).font(.caption).foregroundStyle(.white.opacity(0.55)).padding(.horizontal, 4)
+        case .spotify:
+            spotifyPane
         case .about:
             card {
                 HStack(spacing: 14) {
@@ -190,6 +199,68 @@ struct SettingsView: View {
             }
             Text(t(.privacyNote)).font(.caption).foregroundStyle(.white.opacity(0.55))
                 .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: Spotify
+
+    @ViewBuilder private var spotifyPane: some View {
+        card {
+            HStack(spacing: 12) {
+                Text(t(.spotifyClientID)).font(.system(size: 13, weight: .medium)).frame(width: 100, alignment: .leading)
+                TextField("", text: $clientID, prompt: Text(verbatim: "3f9c…"))
+                    .textFieldStyle(.roundedBorder).font(.system(size: 12, design: .monospaced))
+            }
+            HStack(spacing: 12) {
+                Text(t(.spotifyRedirectURI)).font(.system(size: 13, weight: .medium)).frame(width: 100, alignment: .leading)
+                Text(verbatim: SpotifyPKCE.redirectURI).font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
+                Spacer()
+                Button(t(.spotifyCopy)) {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(SpotifyPKCE.redirectURI, forType: .string)
+                }
+            }
+            Rectangle().fill(.white.opacity(0.08)).frame(height: 1)
+            HStack(spacing: 10) {
+                Circle().fill(auth.isConnected ? Color.green : .white.opacity(0.35)).frame(width: 8, height: 8)
+                Text(spotifyStatus).font(.system(size: 13)).lineLimit(2)
+                Spacer(minLength: 12)
+                if auth.state == .connecting { ProgressView().controlSize(.small) }
+                if auth.isConnected {
+                    Button(t(.spotifyDisconnect)) { auth.disconnect() }
+                } else {
+                    Button(t(.spotifyConnect)) { auth.connect() }
+                        .disabled(clientID.trimmingCharacters(in: .whitespaces).isEmpty || auth.state == .connecting)
+                }
+            }
+        }
+        if auth.needsReconnect {
+            HStack {
+                Label(t(.spotifyReconnectHint), systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Button(t(.spotifyReconnect)) { auth.connect() }
+            }
+            .font(.caption).padding(.horizontal, 4)
+        }
+        card {
+            Text(t(.spotifyGuideTitle)).font(.system(size: 13, weight: .medium))
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array([L10nKey.spotifyGuideStep1, .spotifyGuideStep2, .spotifyGuideStep3, .spotifyGuideStep4].enumerated()), id: \.offset) { index, key in
+                    Text("\(index + 1). ") + Text((try? AttributedString(markdown: t(key))) ?? AttributedString(t(key)))
+                }
+            }
+            .font(.system(size: 12)).foregroundStyle(.white.opacity(0.75))
+            Text(t(.spotifyPremiumNote)).font(.caption).foregroundStyle(.white.opacity(0.55))
+        }
+    }
+
+    private var spotifyStatus: String {
+        switch auth.state {
+        case .disconnected: return t(.spotifyNotConnected)
+        case .connecting: return t(.spotifyConnecting)
+        case .connected(let name): return L10n.string(.spotifyConnected, name, language: language)
+        case .failed(let message): return L10n.string(.spotifyLoginFailed, message, language: language)
         }
     }
 

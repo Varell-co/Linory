@@ -59,7 +59,10 @@ final class MenuWindow: NSObject, NSWindowDelegate {
         }
         // Clicks in Linory's own windows (the overlay) are not seen by the global monitor.
         localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            if event.window !== self?.panel, !(event.window?.className.contains("StatusBar") ?? false) { self?.close() }
+            // The True Shuffle source picker opens a menu in its own window; picking from it must not close the panel.
+            guard let window = event.window, window !== self?.panel,
+                  !window.className.contains("StatusBar"), !window.className.contains("Menu") else { return event }
+            self?.close()
             return event
         }
     }

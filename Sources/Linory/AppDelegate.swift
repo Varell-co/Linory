@@ -14,6 +14,8 @@ func tr(_ key: L10nKey, _ args: CVarArg...) -> String { L10n.string(key, argumen
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let model = PlayerModel()
+    let spotify = SpotifyAuth()
+    private var shuffle: ShuffleController!
     var overlay: NSPanel!
     var settings: NSWindow!
     var statusItem: NSStatusItem!
@@ -53,13 +55,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
         clickThrough = UserDefaults.standard.bool(forKey: "clickThrough")
         overlay.orderFrontRegardless()
+        installEditMenu()
+        shuffle = ShuffleController(auth: spotify)
+        model.onTrackChange = { [weak self] track in
+            self?.shuffle.trackChanged(uri: track.source == .spotify ? track.rawID : nil)
+        }
         buildMenu()
         if !hotKey.register(handler: { [weak self] in self?.toggleVisibility() }) { showHotKeyError() }
         model.start()
+        spotify.restore()
         visibilityTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.applyVisibility(animated: true) }
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             self?.applyLanguage()
         }
+    }
+    /// A menu-bar-only app has no visible menu bar, but text fields still get ⌘C, ⌘V, ⌘X, ⌘A and ⌘Z only
+    /// through Edit menu key equivalents. Without this, pasting the Spotify Client ID does nothing.
+    private func installEditMenu() {
+        let edit = NSMenu(title: "Edit")
+        edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        let main = NSMenu()
+        main.addItem(NSMenuItem()) // the first item is the app menu
+        let editItem = NSMenuItem()
+        editItem.submenu = edit
+        main.addItem(editItem)
+        NSApp.mainMenu = main
     }
     /// Strings that stay on screen; the menu popover follows the language by itself.
     private func applyLanguage() {
@@ -122,7 +148,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menuActions.quit = { NSApp.terminate(nil) }
     }
     /// The right-click menu: a glass panel matching the overlay (see MenuWindow).
-    private lazy var menuWindow = MenuWindow { [unowned self] in AnyView(MenuPanel(model: self.model, actions: self.menuActions, expanded: $0)) }
+    private lazy var menuWindow = MenuWindow { [unowned self] in AnyView(MenuPanel(model: self.model, actions: self.menuActions, auth: self.spotify, shuffle: self.shuffle,
+                                                                                         expanded: $0, measuring: $0 != nil)) }
     private func toggleMenu(from button: NSStatusBarButton) { menuWindow.toggle(below: button) }
     @objc func statusClicked(_ sender: NSStatusBarButton) {
         if NSApp.currentEvent?.type == .rightMouseUp {
@@ -165,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func toggleClick() { clickThrough.toggle() }
     @objc func showSettings() {
         if settings == nil {
-            let hosting = NSHostingController(rootView: SettingsView(resize: { [weak self] in self?.resize() }))
+            let hosting = NSHostingController(rootView: SettingsView(auth: spotify, resize: { [weak self] in self?.resize() }))
             hosting.sizingOptions = .preferredContentSize
             settings = NSWindow(contentViewController: hosting)
             settings.styleMask = [.titled, .closable, .fullSizeContentView]

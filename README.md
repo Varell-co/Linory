@@ -33,9 +33,11 @@ Follow the current line as words brighten with playback. Keep the next lines nea
 
 **Make room for your style.** Adjust type, size, opacity and lyric timing. Choose English or German, and optionally launch at login.
 
+**True Shuffle.** Optional, for Spotify: play Liked Songs or your own playlists in an honest random order where nothing repeats until everything has played. Needs Spotify Premium and your own free Spotify developer app. [How it works](docs/USAGE.md#true-shuffle).
+
 ### Get Linory
 
-Download the latest ZIP from [Releases](https://github.com/MikeLeonFox/LyricsOverlay/releases), extract it, and open `Linory.app`. Play a song and allow macOS Automation access to your player when prompted. No player login or API key is needed.
+Download the latest ZIP from [Releases](https://github.com/MikeLeonFox/LyricsOverlay/releases), extract it, and open `Linory.app`. Play a song and allow macOS Automation access to your player when prompted. Lyrics need no player login or API key.
 
 > [!IMPORTANT]
 > **Early, unnotarized prototype.** This build has no Apple Developer ID signature and may be blocked by Gatekeeper. Only open it if you trust the source; follow [Apple’s opening instructions](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac). Do not disable Gatekeeper globally. Tested on one Mac; Intel hardware and the full macOS 13+ deployment range remain unverified.

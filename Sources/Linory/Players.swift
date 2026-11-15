@@ -65,6 +65,60 @@ struct MusicPlayer: MediaPlayer {
     }
 }
 
+/// Spotify write commands, used only by True Shuffle.
+enum SpotifyControl {
+    private static let queue = DispatchQueue(label: "spotify-control")
+    private static var isRunning: Bool { !NSRunningApplication.runningApplications(withBundleIdentifier: PlayerSource.spotify.bundleID).isEmpty }
+
+    /// Unlike reading, this may launch Spotify: the user explicitly asked to play.
+    /// Shuffle and repeat are set again after `play`, because Spotify can restore a context's own setting when it starts.
+    static func playPlaylist(id: String) async throws {
+        try await launchIfNeeded()
+        try await run("""
+        tell application id "com.spotify.client"
+            set shuffling to false
+            set repeating to false
+            play track "spotify:playlist:\(id)"
+            delay 0.5
+            set shuffling to false
+            set repeating to false
+        end tell
+        """)
+    }
+
+    static func launchIfNeeded() async throws {
+        if !isRunning {
+            guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: PlayerSource.spotify.bundleID) else {
+                throw StatusMessage.playerError(.spotify, "Spotify is not installed.")
+            }
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = false
+            _ = try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+            for _ in 0..<20 where !isRunning { try await Task.sleep(nanoseconds: 500_000_000) }
+            guard isRunning else { throw StatusMessage.playerError(.spotify, "Spotify did not start.") }
+            // A freshly started Spotify ignores AppleScript for a moment.
+            try await Task.sleep(nanoseconds: 2_000_000_000)
+        }
+    }
+
+    static func nextTrack() async throws {
+        guard isRunning else { return }
+        try await run(#"tell application id "com.spotify.client" to next track"#)
+    }
+
+    private static func run(_ source: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            queue.async {
+                var error: NSDictionary?
+                if NSAppleScript(source: source)?.executeAndReturnError(&error) != nil { return continuation.resume() }
+                let number = error?[NSAppleScript.errorNumber] as? Int
+                let detail = error?[NSAppleScript.errorMessage] as? String ?? "\(number ?? 0)"
+                continuation.resume(throwing: number == -1743 ? StatusMessage.automationDenied(.spotify) : StatusMessage.playerError(.spotify, detail))
+            }
+        }
+    }
+}
+
 /// Cover art for the current track: Spotify gives a CDN link, Music gives the image bytes.
 enum Artwork {
     case url(URL)
