@@ -62,8 +62,32 @@ enum Snapshots {
                 save("settings-\(pane)", SettingsView(auth: connected, resize: {}, pane: pane))
             }
             save("settings-spotify-disconnected", SettingsView(auth: disconnected, resize: {}, pane: .spotify))
-            save("settings-stats-disconnected", SettingsView(auth: disconnected, resize: {}, pane: .stats))
+            let history = ListeningRecorder()
+            save("stats-empty", StatsView(recorder: history, auth: disconnected, openSettings: {}))
+            history.previewSessions(previewHistory(playing.track!))
+            save("stats", StatsView(recorder: history, auth: connected, openSettings: {}))
         }
+    }
+
+    /// Three weeks of invented listening, most of it in the evening.
+    private static func previewHistory(_ track: Track) -> [ListenSession] {
+        let names = [("Midnight Signals", "The Paper Lanterns"), ("Glass Harbor", "North Wind"), ("Low Tide", "Mara Quell"),
+                     ("Orbit Lines", "The Paper Lanterns"), ("Saltwater Radio", "Kite Season"), ("Copper Sky", "Mara Quell")]
+        var generator = SystemRandomNumberGenerator()
+        var sessions: [ListenSession] = []
+        let now = Date()
+        for day in 0..<21 {
+            for _ in 0..<Int.random(in: 2...14, using: &generator) {
+                let (title, artist) = names[Int.random(in: 0..<names.count, using: &generator)]
+                let hour = [8, 9, 13, 18, 19, 20, 21, 22, 23].randomElement(using: &generator)!
+                let start = Calendar.current.date(bySettingHour: hour, minute: Int.random(in: 0..<60), second: 0, of: now.addingTimeInterval(-Double(day) * 86_400))!
+                guard start < now else { continue }
+                let song = Track(source: .spotify, rawID: "spotify:track:\(title.hashValue)", title: title, artist: artist, duration: 210)
+                sessions.append(ListenSession(track: song, start: start, listened: Bool.random(using: &generator) ? 210 : Double.random(in: 5...200),
+                                              syncedLyrics: Bool.random(using: &generator)))
+            }
+        }
+        return sessions.sorted { $0.start < $1.start }
     }
 
     /// Renders on a neutral backdrop, so translucent glass stays readable in the image.

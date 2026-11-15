@@ -4,7 +4,7 @@ import os
 
 /// Dark glass settings with a sidebar, following the Linory UI concept.
 struct SettingsView: View {
-    enum Pane: CaseIterable { case general, overlay, timing, spotify, stats, about }
+    enum Pane: CaseIterable { case general, overlay, timing, spotify, about }
 
     @AppStorage("fontSize") private var fontSize = 25.0
     @AppStorage("opacity") private var opacity = 0.78
@@ -24,8 +24,6 @@ struct SettingsView: View {
     @State private var loginError: String?
     private let log = Logger(subsystem: LyricsService.subsystem, category: "login")
     @ObservedObject var auth: SpotifyAuth
-    @StateObject private var stats = TopItemsModel()
-    @State private var statsRange = SpotifyTimeRange.short
     var resize: () -> Void
 
     init(auth: SpotifyAuth, resize: @escaping () -> Void, pane: Pane = .general) {
@@ -116,7 +114,6 @@ struct SettingsView: View {
         case .overlay: return t(.sectionAppearance)
         case .timing: return t(.sectionTiming)
         case .spotify: return t(.sectionSpotify)
-        case .stats: return t(.sectionStats)
         case .about: return t(.sectionAbout)
         }
     }
@@ -126,7 +123,6 @@ struct SettingsView: View {
         case .overlay: return t(.overlaySubtitle)
         case .timing: return t(.timingSubtitle)
         case .spotify: return t(.spotifySubtitle)
-        case .stats: return t(.statsSubtitle)
         case .about: return t(.aboutSubtitle)
         }
     }
@@ -136,7 +132,6 @@ struct SettingsView: View {
         case .overlay: return "square.3.layers.3d"
         case .timing: return "metronome"
         case .spotify: return "music.note.house"
-        case .stats: return "chart.bar"
         case .about: return "info.circle"
         }
     }
@@ -197,8 +192,6 @@ struct SettingsView: View {
             Text(t(.timingHint)).font(.caption).foregroundStyle(.white.opacity(0.55)).padding(.horizontal, 4)
         case .spotify:
             spotifyPane
-        case .stats:
-            statsPane
         case .about:
             card {
                 HStack(spacing: 14) {
@@ -268,80 +261,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: Your music
-
-    private var statsPane: some View {
-        VStack(alignment: .leading, spacing: 10) { statsContent }
-            .task(id: StatsRequest(range: statsRange, connected: auth.isConnected)) {
-                if auth.isConnected { await stats.load(statsRange, api: auth.api) } else { stats.clear() }
-            }
-    }
-
-    @ViewBuilder private var statsContent: some View {
-        if !auth.isConnected {
-            HStack {
-                Text(t(.statsConnectHint)).foregroundStyle(.white.opacity(0.75))
-                Spacer(minLength: 8)
-                Button(t(.statsOpenSpotify)) { withAnimation(Motion.easeOut(0.24)) { pane = .spotify } }
-            }
-            .font(.system(size: 13)).padding(.horizontal, 4)
-        } else {
-            Picker("", selection: $statsRange) {
-                Text(t(.statsRangeShort)).tag(SpotifyTimeRange.short)
-                Text(t(.statsRangeMedium)).tag(SpotifyTimeRange.medium)
-                Text(t(.statsRangeLong)).tag(SpotifyTimeRange.long)
-            }
-            .pickerStyle(.segmented).labelsHidden().fixedSize()
-            // Logins from before stats existed lack `user-top-read`; Spotify then answers 403.
-            if auth.needsReconnect || stats.failure == .forbidden {
-                HStack {
-                    Label(t(.statsReconnectHint), systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 8)
-                    Button(t(.spotifyReconnect)) { auth.connect() }
-                }
-                .font(.caption).padding(.horizontal, 4)
-            } else if stats.failure == .other {
-                Label(t(.statsError), systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange).padding(.horizontal, 4)
-            }
-            let items = stats.items[statsRange]
-            HStack(alignment: .top, spacing: 10) {
-                topList(t(.statsTopArtists), items?.artists)
-                topList(t(.statsTopTracks), items?.tracks)
-            }
-        }
-    }
-
-    /// Display only. Each row opens the artist or track in Spotify.
-    private func topList(_ title: String, _ items: [SpotifyTopItem]?) -> some View {
-        card {
-            Text(title).font(.system(size: 13, weight: .medium))
-            if let items {
-                if items.isEmpty { Text(t(.statsEmpty)).font(.system(size: 12)).foregroundStyle(.white.opacity(0.55)) }
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { rank, item in
-                        Button { SpotifyLink.open(item.uri) } label: {
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text("\(rank + 1)").font(.system(size: 11, weight: .medium)).monospacedDigit()
-                                    .foregroundStyle(.white.opacity(0.45)).frame(width: 16, alignment: .trailing)
-                                VStack(alignment: .leading, spacing: 0) {
-                                    Text(item.name).font(.system(size: 12.5))
-                                    if !item.artists.isEmpty { Text(item.artists).font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)) }
-                                }
-                                .lineLimit(1)
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.vertical, 3).contentShape(Rectangle())
-                        }
-                        .buttonStyle(PressableStyle(scale: 0.98))
-                    }
-                }
-            } else {
-                ProgressView().controlSize(.small).frame(maxWidth: .infinity)
-            }
-        }
-    }
-
     private var spotifyStatus: String {
         switch auth.state {
         case .disconnected: return t(.spotifyNotConnected)
@@ -402,41 +321,5 @@ struct SettingsView: View {
             log.error("\(enabled ? "register" : "unregister", privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
         }
         refreshLogin()
-    }
-}
-
-private struct StatsRequest: Equatable {
-    let range: SpotifyTimeRange
-    let connected: Bool
-}
-
-/// Top artists and tracks per time range, loaded once per Settings window and range.
-@MainActor
-final class TopItemsModel: ObservableObject {
-    enum Failure { case forbidden, other }
-
-    @Published private(set) var items: [SpotifyTimeRange: (artists: [SpotifyTopItem], tracks: [SpotifyTopItem])] = [:]
-    @Published private(set) var failure: Failure?
-    private var loading: Set<SpotifyTimeRange> = []
-
-    /// Another login may be a different account.
-    func clear() {
-        items = [:]
-        failure = nil
-    }
-
-    func load(_ range: SpotifyTimeRange, api: SpotifyAPI) async {
-        guard items[range] == nil, loading.insert(range).inserted else { return }
-        defer { loading.remove(range) }
-        do {
-            async let artists = api.topItems("artists", range: range)
-            async let tracks = api.topItems("tracks", range: range)
-            items[range] = try await (artists, tracks)
-            failure = nil
-        } catch SpotifyError.http(403) {
-            failure = .forbidden
-        } catch {
-            failure = .other
-        }
     }
 }

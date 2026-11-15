@@ -49,6 +49,12 @@ public enum L10nKey: String, CaseIterable {
     case sleepTimer, sleepOff, sleepMinutes, sleepEndOfTrack, sleepPausesIn
     case sectionStats, statsSubtitle, statsTopArtists, statsTopTracks, statsRangeShort, statsRangeMedium, statsRangeLong
     case statsConnectHint, statsOpenSpotify, statsReconnectHint, statsEmpty, statsError
+    // Listening history and the stats window
+    case historySubtitle, rangeToday, range7Days, range30Days, rangeYear, rangeAll
+    case tileListening, tileListeningDetail, tilePlays, tilePlaysDetail, tileStreak, tileStreakDetail, tileSkips, tileSkipsDetail
+    case durationMinutes, durationHours, chartOverTime, chartClock, chartLess, chartMore, chartHoverHint
+    case listTopSongs, listTopArtists, playsCount, statsOnSpotify, statsNoHistory
+    case historyKeep, historyKeepHint, historyClear, historyClearConfirm
 
 }
 
@@ -203,7 +209,7 @@ public enum L10n {
             .sleepEndOfTrack: "End of track",
             .sleepPausesIn: "Pauses in %@",
             .sectionStats: "Your music",
-            .statsSubtitle: "Your most played artists and tracks on Spotify. Click one to open it in Spotify.",
+            .statsSubtitle: "Spotify's own ranking of your top artists and tracks. Click one to open it in Spotify.",
             .statsTopArtists: "Top artists",
             .statsTopTracks: "Top tracks",
             .statsRangeShort: "4 weeks",
@@ -214,6 +220,36 @@ public enum L10n {
             .statsReconnectHint: "Reconnect once so Linory may read your top artists and tracks.",
             .statsEmpty: "Not enough listening history yet.",
             .statsError: "Your top items could not be loaded.",
+            .historySubtitle: "What you listened to while Linory was running, in Spotify and Music.",
+            .rangeToday: "Today",
+            .range7Days: "7 days",
+            .range30Days: "30 days",
+            .rangeYear: "12 months",
+            .rangeAll: "All time",
+            .tileListening: "Listening time",
+            .tileListeningDetail: "About %@ a day",
+            .tilePlays: "Plays",
+            .tilePlaysDetail: "%ld %% with synced lyrics",
+            .tileStreak: "Day streak",
+            .tileStreakDetail: "Days in a row with music",
+            .tileSkips: "Skipped",
+            .tileSkipsDetail: "Left within 30 seconds",
+            .durationMinutes: "%ld min",
+            .durationHours: "%ld h %ld min",
+            .chartOverTime: "Listening over time",
+            .chartClock: "Listening clock",
+            .chartLess: "Less",
+            .chartMore: "More",
+            .chartHoverHint: "Hover for details.",
+            .listTopSongs: "Most played songs",
+            .listTopArtists: "Most played artists",
+            .playsCount: "%ld×",
+            .statsOnSpotify: "On Spotify",
+            .statsNoHistory: "No listening history yet. Play some music while Linory is running, and it shows up here.",
+            .historyKeep: "Keep listening history",
+            .historyKeepHint: "Stored only on this Mac. Nothing is uploaded.",
+            .historyClear: "Clear history",
+            .historyClearConfirm: "Click again to delete",
 
         ],
         .de: [
@@ -352,7 +388,7 @@ public enum L10n {
             .sleepEndOfTrack: "Titelende",
             .sleepPausesIn: "Pausiert in %@",
             .sectionStats: "Deine Musik",
-            .statsSubtitle: "Deine meistgehörten Künstler und Titel auf Spotify. Klicke einen an, um ihn in Spotify zu öffnen.",
+            .statsSubtitle: "Spotifys eigene Rangliste deiner Top-Künstler und -Titel. Klicke einen an, um ihn in Spotify zu öffnen.",
             .statsTopArtists: "Top-Künstler",
             .statsTopTracks: "Top-Titel",
             .statsRangeShort: "4 Wochen",
@@ -363,6 +399,36 @@ public enum L10n {
             .statsReconnectHint: "Verbinde dich einmal neu, damit Linory deine Top-Künstler und -Titel lesen darf.",
             .statsEmpty: "Noch nicht genug Hörverlauf.",
             .statsError: "Deine Top-Einträge konnten nicht geladen werden.",
+            .historySubtitle: "Was du gehört hast, während Linory lief, in Spotify und Musik.",
+            .rangeToday: "Heute",
+            .range7Days: "7 Tage",
+            .range30Days: "30 Tage",
+            .rangeYear: "12 Monate",
+            .rangeAll: "Gesamt",
+            .tileListening: "Hörzeit",
+            .tileListeningDetail: "Etwa %@ pro Tag",
+            .tilePlays: "Wiedergaben",
+            .tilePlaysDetail: "%ld %% mit synchronen Lyrics",
+            .tileStreak: "Tage in Folge",
+            .tileStreakDetail: "Tage am Stück mit Musik",
+            .tileSkips: "Übersprungen",
+            .tileSkipsDetail: "Vor 30 Sek. gewechselt",
+            .durationMinutes: "%ld Min.",
+            .durationHours: "%ld Std. %ld Min.",
+            .chartOverTime: "Hörzeit im Verlauf",
+            .chartClock: "Hör-Uhr",
+            .chartLess: "Weniger",
+            .chartMore: "Mehr",
+            .chartHoverHint: "Für Details darüberfahren.",
+            .listTopSongs: "Meistgehörte Songs",
+            .listTopArtists: "Meistgehörte Künstler",
+            .playsCount: "%ld×",
+            .statsOnSpotify: "Auf Spotify",
+            .statsNoHistory: "Noch kein Hörverlauf. Spiele Musik, während Linory läuft, dann erscheint sie hier.",
+            .historyKeep: "Hörverlauf speichern",
+            .historyKeepHint: "Nur auf diesem Mac gespeichert. Nichts wird hochgeladen.",
+            .historyClear: "Verlauf löschen",
+            .historyClearConfirm: "Zum Löschen erneut klicken",
 
         ],
     ]

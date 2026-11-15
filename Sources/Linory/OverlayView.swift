@@ -38,14 +38,14 @@ struct OverlayView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .animation(Motion.easeOut(0.25), value: contentKey)
+            if model.track != nil {
+                ProgressLine(model: model, language: language, expanded: showsControls)
+                    .padding(.top, -4) // sits close to the lyrics' faded bottom edge
+            }
         }
         // 16 pt inset with 22 pt panel corners: inner corners (cover art) use 22 - 16 = 6 pt, so they stay concentric.
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        // 8 pt inset with 22 pt panel corners: the bar uses 22 - 8 = 14 pt.
-        .overlay(alignment: .bottom) {
-            if showsControls { controls.padding(8).transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 8))) }
-        }
         .animation(Motion.easeOut(hovering ? 0.2 : 0.3), value: showsControls)
         .background(HoverArea { hovering = $0 })
         // Turning click-through on mid-hover means no exit event ever arrives.
@@ -101,39 +101,6 @@ struct OverlayView: View {
     /// Only on hover, so the overlay stays lyrics first. Click-through means the user wants to click past it.
     private var showsControls: Bool { (hovering || forceControls) && !clickThrough && model.track != nil }
 
-    private var controls: some View {
-        VStack(spacing: 6) {
-            // Equal flexible sides keep the transport centred, with or without a heart or chorus button.
-            HStack(spacing: 0) {
-                HStack(spacing: 0) {
-                    LikeButton(library: model.library, track: model.track, language: language)
-                    Spacer(minLength: 0)
-                }
-                .frame(maxWidth: .infinity)
-                TransportButtons(model: model, language: language)
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    if !model.chorusStarts.isEmpty {
-                        Button(action: model.jumpToChorus) {
-                            Text(L10n.string(.miniChorus, language: language))
-                                .font(.system(size: 11, weight: .semibold))
-                                .padding(.horizontal, 9).padding(.vertical, 4)
-                                .background(.primary.opacity(0.1), in: Capsule())
-                                .contentShape(Capsule())
-                        }
-                        .buttonStyle(PressableStyle(scale: 0.94))
-                        .help(L10n.string(.miniChorusHelp, language: language))
-                    }
-                }
-                .frame(maxWidth: .infinity)
-            }
-            Scrubber(model: model, language: language)
-        }
-        .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.primary.opacity(0.08)))
-    }
-
     // MARK: Header
 
     /// Like the Now Playing widget: cover art, title and artist, entering one after another per song.
@@ -160,7 +127,15 @@ struct OverlayView: View {
             }
             .animation(Motion.easeOut(0.25), value: trackKey)
             Spacer(minLength: 0)
-            if model.lyrics?.synced == false && !sourceLines.isEmpty {
+            if showsControls {
+                // Same muted ink as the header, so the controls read as part of it rather than a toolbar.
+                HStack(spacing: 6) {
+                    LikeButton(library: model.library, track: model.track, language: language)
+                    TransportButtons(model: model, language: language, size: 11)
+                }
+                .foregroundStyle(.secondary)
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(x: 6)))
+            } else if model.lyrics?.synced == false && !sourceLines.isEmpty {
                 Text(StatusMessage.notSynced.text(language: language))
                     .font(.caption).foregroundStyle(.tertiary).layoutPriority(1)
                     .transition(.opacity)

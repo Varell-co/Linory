@@ -15,6 +15,8 @@ func tr(_ key: L10nKey, _ args: CVarArg...) -> String { L10n.string(key, argumen
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let model = PlayerModel()
     let spotify = SpotifyAuth()
+    let history = ListeningRecorder()
+    var statsWindow: NSWindow?
     private var shuffle: ShuffleController!
     var overlay: NSPanel!
     var settings: NSWindow!
@@ -66,6 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         spotify.restore()
         // Mini-player: the heart asks Spotify whether the current track is liked.
         model.library.attach(spotify)
+        // Listening history for the "Your music" window.
+        history.attach(model)
+        model.onTick = { [weak self] in self?.history.tick() }
         visibilityTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.applyVisibility(animated: true) }
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             self?.applyLanguage()
@@ -102,6 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         alert.runModal()
     }
     func applicationWillTerminate(_ notification: Notification) {
+        history.flush()
         hotKey.unregister()
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -147,6 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menuActions.toggleClickThrough = { [weak self] in self?.toggleClick() }
         menuActions.moveTo = { [weak self] corner in self?.position(corner) }
         menuActions.openSettings = { [weak self] in self?.menuWindow.close(); self?.showSettings() }
+        menuActions.openStats = { [weak self] in self?.menuWindow.close(); self?.showStats() }
         menuActions.quit = { NSApp.terminate(nil) }
     }
     /// The right-click menu: a glass panel matching the overlay (see MenuWindow).
@@ -214,6 +221,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             settings.center()
         }
         settings.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+    }
+    /// Same glass window style as Settings.
+    func showStats() {
+        if statsWindow == nil {
+            let view = StatsView(recorder: history, auth: spotify, openSettings: { [weak self] in self?.showSettings() })
+            let hosting = NSHostingController(rootView: view)
+            hosting.sizingOptions = .preferredContentSize
+            let window = NSWindow(contentViewController: hosting)
+            window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.toolbar = NSToolbar()
+            window.toolbarStyle = .unified
+            window.isMovableByWindowBackground = true
+            window.backgroundColor = .clear
+            window.isOpaque = false
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.title = tr(.sectionStats)
+            window.isReleasedWhenClosed = false
+            window.center()
+            statsWindow = window
+        }
+        statsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
     @objc func quitApp() { NSApp.terminate(nil) }
 }

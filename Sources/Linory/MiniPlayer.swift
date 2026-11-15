@@ -207,6 +207,75 @@ struct Scrubber: View {
     }
 }
 
+/// The overlay's progress: a faint hairline under the lyrics that grows into a scrubber on hover, with the time at
+/// both ends and chorus starts as dots you can click. Its height never changes, so the lyrics don't move.
+struct ProgressLine: View {
+    @ObservedObject var model: PlayerModel
+    let language: AppLanguage
+    let expanded: Bool
+    @State private var dragFraction: Double?
+
+    private var duration: Double { model.track?.duration ?? 0 }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 0.25, paused: !model.clock.playing || dragFraction != nil)) { context in
+            let position = dragFraction.map { $0 * duration } ?? model.clock.position(at: context.date)
+            HStack(spacing: 8) {
+                if expanded { label(Scrubber.time(position)).transition(.opacity) }
+                bar(fraction: duration > 0 ? min(1, max(0, position / duration)) : 0)
+                if expanded { label("-" + Scrubber.time(max(0, duration - position))).transition(.opacity) }
+            }
+            .frame(height: 14)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(L10n.string(.miniPosition, language: language))
+            .accessibilityValue("\(Scrubber.time(position)) / \(Scrubber.time(duration))")
+        }
+        .animation(Motion.easeOut(expanded ? 0.2 : 0.3), value: expanded)
+    }
+
+    private func label(_ text: String) -> some View {
+        Text(text).font(.system(size: 10, weight: .medium)).monospacedDigit().foregroundStyle(.secondary).fixedSize()
+    }
+
+    private func bar(fraction: Double) -> some View {
+        let active = expanded || dragFraction != nil
+        let offset = UserDefaults.standard.double(forKey: "offset")
+        return GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.primary.opacity(active ? 0.16 : 0.1))
+                Capsule().fill(.primary.opacity(active ? 0.85 : 0.35))
+                    .frame(width: max(active ? 4 : 2, geo.size.width * fraction))
+            }
+            .frame(height: active ? 4 : 2)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { dragFraction = min(1, max(0, $0.location.x / max(1, geo.size.width))) }
+                .onEnded { value in
+                    defer { dragFraction = nil }
+                    guard duration > 0 else { return }
+                    model.seek(to: min(1, max(0, value.location.x / max(1, geo.size.width))) * duration)
+                }, including: active ? .all : .none)
+            // Chorus starts are lyric times; the timing offset shifts them in player time.
+            if active, duration > 0 {
+                ForEach(model.chorusStarts, id: \.self) { start in
+                    Button { model.seek(toLyricTime: start) } label: {
+                        Circle().fill(Brand.waveLight)
+                            .overlay(Circle().strokeBorder(.black.opacity(0.25), lineWidth: 1))
+                            .frame(width: 7, height: 7)
+                            .frame(width: 14, height: 14).contentShape(Circle())
+                    }
+                    .buttonStyle(PressableStyle(scale: 0.8))
+                    .help(L10n.string(.miniChorusHelp, language: language))
+                    .position(x: geo.size.width * min(1, max(0, (start - offset) / duration)), y: geo.size.height / 2)
+                    .transition(.opacity)
+                }
+            }
+        }
+        .animation(Motion.easeOut(0.15), value: active)
+    }
+}
+
 /// Reports the pointer entering and leaving, also while Linory is in the background. The overlay never becomes
 /// key, and SwiftUI's own hover tracking is not guaranteed to fire for an inactive app.
 struct HoverArea: NSViewRepresentable {

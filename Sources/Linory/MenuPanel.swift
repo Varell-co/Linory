@@ -9,6 +9,7 @@ final class MenuActions: ObservableObject {
     var toggleClickThrough: () -> Void = {}
     var moveTo: (String) -> Void = { _ in }
     var openSettings: () -> Void = {}
+    var openStats: () -> Void = {}
     var quit: () -> Void = {}
 }
 
@@ -60,6 +61,7 @@ struct MenuPanel: View {
             disclosureRow("moon.zzz", t(.sleepTimer), .sleep, detail: sleep.remaining.map { SleepTimer.format($0) })
             if expanded == .sleep { sleepOptions.transition(sectionTransition) }
             Divider().padding(.horizontal, 8).padding(.vertical, 4)
+            MenuRow(symbol: "chart.bar.xaxis", title: t(.sectionStats), action: actions.openStats)
             MenuRow(symbol: "gearshape", title: t(.settingsMenu), shortcut: "⌘,", action: actions.openSettings)
                 .keyboardShortcut(",", modifiers: .command)
             MenuRow(symbol: "power", title: "\(t(.quit)) \(Brand.name)", shortcut: "⌘Q", action: actions.quit)

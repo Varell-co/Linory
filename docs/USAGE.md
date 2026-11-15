@@ -34,10 +34,10 @@ Play a song in Spotify or Music and allow Linory to control that app when macOS 
 
 Linory controls the player you are listening to; Spotify or Music still does all the playing.
 
-- **Controls:** hover over the overlay to show previous, play/pause, next and a progress bar. They stay hidden while click-through is on. The menu's now-playing header (right-click the menu-bar icon) always shows them while a track plays.
+- **Controls:** a faint line under the lyrics shows the song's progress. Hover over the overlay and ♥, previous, play/pause and next appear next to the title, and the line becomes a scrubber with the elapsed and remaining time; click or drag it to seek. The controls stay hidden while click-through is on. The menu's now-playing header (right-click the menu-bar icon) always shows them while a track plays.
 - **Seek:** click or drag the progress bar. It shows elapsed and remaining time.
 - **Click a lyric line** to jump the song to that line (synced lyrics only). The timing offset is respected, so the clicked line is the one that lights up.
-- **Chorus:** when synced lyrics repeat a group of lines, a **Chorus** button jumps to the next chorus; press it again for the one after.
+- **Chorus:** when synced lyrics repeat a group of lines, each chorus start shows as a dot on the progress line while you hover. Click a dot to jump there.
 - **♥ Like:** with [Spotify connected](#connect-spotify-optional), a heart adds the current Spotify track to your Liked Songs or removes it. It is hidden for Music tracks and without a connection.
 - **Open in Spotify:** click the cover or title of a Spotify track to show it in Spotify.
 - Commands never start a player that is not running.
@@ -48,7 +48,7 @@ Linory dates every position reading with the moment the player reported it, rath
 
 ## Connect Spotify (optional)
 
-Lyrics need no login. Only **True Shuffle**, **Your music** and the mini-player's **♥ Like** need a Spotify connection, which uses a Spotify app that you create yourself:
+Lyrics need no login. Only **True Shuffle**, the **On Spotify** lists in **Your music** and the mini-player's **♥ Like** need a Spotify connection, which uses a Spotify app that you create yourself:
 
 1. Open the [Spotify developer dashboard](https://developer.spotify.com/dashboard) and sign in.
 2. Create an app and select **Web API**.
@@ -78,7 +78,15 @@ Right-click the menu-bar icon, then **Sleep timer**, and pick 15, 30, 45 or 60 m
 
 ## Your music
 
-**Settings → Your music** shows your 10 most played artists and tracks on Spotify for the last 4 weeks, 6 months or year, as Spotify calculates them. Click an entry to open it in Spotify. It needs a [Spotify connection](#connect-spotify-optional); if you connected before this pane existed, press **Reconnect** once to allow Linory to read your top items.
+Open **Your music** from the menu (right-click the menu-bar icon). It shows what you listened to while Linory was running, in Spotify and Music, for today, the last 7 or 30 days, 12 months, or all time:
+
+- **Tiles:** listening time (with the daily average), plays (with the share that had synced lyrics), your day streak, and how many songs you skipped.
+- **Listening over time** and the **listening clock** (weekday × hour). Hover a bar or cell for its exact time.
+- **Most played songs and artists**, ranked by the time you actually listened. Click a Spotify song to open it in Spotify.
+
+A song counts as a play after 30 seconds, or half of a shorter song; leaving earlier counts as skipped. Only time while music plays counts, not pauses. Turn **Keep listening history** off at the bottom of the window to stop recording, or press **Clear history** twice to delete it.
+
+**On Spotify** shows Spotify's own ranking of your 10 top artists and tracks for the last 4 weeks, 6 months or year. It needs a [Spotify connection](#connect-spotify-optional); if you connected before this existed, press **Reconnect** once to allow Linory to read your top items.
 
 ## Where the lyrics come from
 

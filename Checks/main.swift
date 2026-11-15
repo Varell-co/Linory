@@ -117,6 +117,65 @@ func checkChorus() {
     precondition(Chorus.next(after: 0, starts: []) == nil)
 }
 
+func checkListeningStats() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    let monday = Date(timeIntervalSince1970: 1_763_337_600) // Mon 17 Nov 2025 00:00 UTC
+    let song = Track(source: .spotify, rawID: "spotify:track:a", title: "Song A", artist: "Artist", duration: 200)
+    let other = Track(source: .music, rawID: "42", title: "Song B", artist: "artist", duration: 180)
+
+    // Tracker: only playing time counts, gaps are capped, a track change ends the session.
+    var tracker = ListeningTracker()
+    var t = monday.addingTimeInterval(9 * 3600)
+    precondition(tracker.tick(track: song, position: 0, playing: true, syncedLyrics: false, at: t) == nil)
+    for _ in 0..<50 { t += 1; _ = tracker.tick(track: song, position: 1, playing: true, syncedLyrics: true, at: t) }
+    t += 600; _ = tracker.tick(track: song, position: 51, playing: true, syncedLyrics: false, at: t) // slept: +5 s only
+    t += 10; _ = tracker.tick(track: song, position: 56, playing: false, syncedLyrics: false, at: t) // paused: +0
+    t += 1
+    let first = tracker.tick(track: other, position: 0, playing: true, syncedLyrics: false, at: t)
+    precondition(first?.listened == 55 && first?.syncedLyrics == true && first?.uri == "spotify:track:a" && first?.countsAsPlay == true)
+    for _ in 0..<10 { t += 1; _ = tracker.tick(track: other, position: 1, playing: true, syncedLyrics: false, at: t) }
+    let skipped = tracker.tick(track: nil, position: 0, playing: false, syncedLyrics: false, at: t + 1)
+    precondition(skipped?.listened == 10 && skipped?.skipped == true && skipped?.uri == nil, "10 s of a 3 min song is a skip")
+    precondition(tracker.finish() == nil)
+    _ = tracker.tick(track: song, position: 0, playing: true, syncedLyrics: false, at: t)
+    _ = tracker.tick(track: song, position: 198, playing: true, syncedLyrics: false, at: t + 3)
+    let repeated = tracker.tick(track: song, position: 1, playing: true, syncedLyrics: false, at: t + 4)
+    precondition(repeated?.listened == 3 && tracker.current?.trackID == song.id, "repeat-one starts a new session")
+    _ = tracker.tick(track: song, position: 1.5, playing: true, syncedLyrics: false, at: t + 4.5)
+    precondition(tracker.finish() == nil, "under a second is noise")
+
+    // Stats
+    func session(_ track: Track, day: Int, hour: Int, listened: Double, synced: Bool = false) -> ListenSession {
+        ListenSession(track: track, start: monday.addingTimeInterval(Double(day) * 86_400 + Double(hour) * 3600), listened: listened, syncedLyrics: synced)
+    }
+    let sessions = [
+        session(song, day: 0, hour: 9, listened: 200, synced: true), session(song, day: 1, hour: 21, listened: 200),
+        session(other, day: 2, hour: 21, listened: 180, synced: true), session(other, day: 2, hour: 22, listened: 5),
+        session(song, day: 3, hour: 8, listened: 30), session(other, day: -40, hour: 12, listened: 180),
+    ]
+    let now = monday.addingTimeInterval(3 * 86_400 + 12 * 3600) // Thursday noon
+    let week = ListeningStats.summarize(sessions, range: .week, now: now, calendar: calendar)
+    precondition(week.seconds == 615 && week.plays == 4 && week.skips == 1, "the 40-day-old session is outside the week")
+    precondition(abs(week.skipRate - 0.2) < 0.0001 && week.syncedShare == 0.5)
+    precondition(week.topTracks.map(\.title) == ["Song A", "Song B"] && week.topTracks[0].plays == 3 && week.topTracks[0].uri != nil)
+    precondition(week.topArtists.count == 1 && week.topArtists[0].seconds == 615, "artists group case-insensitively across players")
+    precondition(week.clock[0][9] == 200 && week.clock[2][21] == 180 && week.clock[2][22] == 5, "Monday first, by start hour")
+    precondition(week.unit == .day && week.buckets.count == 7 && week.buckets.last?.seconds == 30 && week.buckets[3].seconds == 200)
+    precondition(week.streakDays == 3, "Thursday has only 30 s so far; the run Mon to Wed still counts")
+    let today = ListeningStats.summarize(sessions, range: .today, now: now, calendar: calendar)
+    precondition(today.unit == .hour && today.buckets.count == 13 && today.seconds == 30 && today.plays == 1)
+    let all = ListeningStats.summarize(sessions, range: .all, now: now, calendar: calendar)
+    precondition(all.unit == .month && all.buckets.count == 2 && all.seconds == 795)
+    precondition(ListeningStats.summarize([], range: .year, now: now, calendar: calendar).buckets.count == 12)
+    let gap = ListeningStats.summarize([session(song, day: 0, hour: 9, listened: 200)], range: .week, now: now, calendar: calendar)
+    precondition(gap.streakDays == 0, "a streak needs today or yesterday")
+
+    let encoded = try JSONEncoder().encode(sessions[0])
+    let decodedSession = try JSONDecoder().decode(ListenSession.self, from: encoded)
+    precondition(decodedSession == sessions[0], "session JSON round trip")
+}
+
 func checkParsing() {
     let lines = LRC.parse("[00:03.50] Second\n[00:01.00] First\n[00:07.00][00:09.10] Again\n[00:12.0] \n[00:65.00] Invalid")
     precondition(lines.map(\.time) == [1, 3.5, 7, 9.1, 12])
@@ -706,4 +765,5 @@ try checkSpotifyResponses()
 try checkShuffleCycle()
 try checkMiniPlayer()
 try checkShuffleUpgrades()
+try checkListeningStats()
 print("LyricsCore checks passed")

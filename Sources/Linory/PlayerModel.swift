@@ -18,6 +18,8 @@ final class PlayerModel: ObservableObject {
     let library = SpotifyLibrary()
     /// Called on the main thread after the current track changes.
     var onTrackChange: ((Track) -> Void)?
+    /// Called on the main thread after every player read, for the listening history.
+    var onTick: (() -> Void)?
     private var generation = 0
     private var pending = false
     /// Something changed while a read was in flight, so its result may already be stale: read again after it.
@@ -113,6 +115,7 @@ final class PlayerModel: ObservableObject {
                 case .success(nil): self.clear(chosen.map { .noTrack($0) } ?? .openPlayer)
                 case .success(let sample?): self.update(sample)
                 }
+                self.onTick?()
             }
         }
     }
