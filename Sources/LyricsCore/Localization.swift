@@ -40,9 +40,15 @@ public enum L10nKey: String, CaseIterable {
     case shuffleConnectHint, shuffleOpenSettings, shufflePlaylistName, shufflePlaylistDescription
     case shuffleErrorAuth, shuffleErrorNetwork, shuffleErrorAutomation, shuffleErrorPremium, shuffleErrorHTTP, shuffleErrorPlayback
     case shuffleRemove, shuffleRestore, shuffleKeep, shuffleKeptName, shuffleKept
-    // MARK: Mini-player keys (agent A adds cases below)
+    // Mini-player
+    case miniPrevious, miniPlay, miniPause, miniNext, miniPosition, miniLike, miniUnlike
+    case miniChorus, miniChorusHelp, miniOpenInSpotify
 
-    // MARK: Shuffle upgrades, sleep timer and stats keys (agent B adds cases below)
+    // Shuffle upgrades, sleep timer and stats
+    case shuffleMixName, shuffleMixSources, shuffleAutoContinue, shuffleContinuing, shuffleFull, shuffleUpNext
+    case sleepTimer, sleepOff, sleepMinutes, sleepEndOfTrack, sleepPausesIn
+    case sectionStats, statsSubtitle, statsTopArtists, statsTopTracks, statsRangeShort, statsRangeMedium, statsRangeLong
+    case statsConnectHint, statsOpenSpotify, statsReconnectHint, statsEmpty, statsError
 
 }
 
@@ -172,9 +178,42 @@ public enum L10n {
             .shuffleKeep: "Keep this shuffle",
             .shuffleKeptName: "%@ · Shuffled %@",
             .shuffleKept: "Saved as “%@”",
-            // MARK: en mini-player (agent A)
+            // Mini-player
+            .miniPrevious: "Previous track",
+            .miniPlay: "Play",
+            .miniPause: "Pause",
+            .miniNext: "Next track",
+            .miniPosition: "Playback position",
+            .miniLike: "Add to Liked Songs",
+            .miniUnlike: "Remove from Liked Songs",
+            .miniChorus: "Chorus",
+            .miniChorusHelp: "Jump to the chorus",
+            .miniOpenInSpotify: "Open in Spotify",
 
-            // MARK: en shuffle upgrades, sleep timer, stats (agent B)
+            // Shuffle upgrades, sleep timer and stats
+            .shuffleMixName: "Mix: %@",
+            .shuffleMixSources: "Mix sources",
+            .shuffleAutoContinue: "Keep playing",
+            .shuffleContinuing: "Adding the next round…",
+            .shuffleFull: "Linory Shuffle is full. Shuffle & play starts it fresh.",
+            .shuffleUpNext: "Up next",
+            .sleepTimer: "Sleep timer",
+            .sleepOff: "Off",
+            .sleepMinutes: "%ld min",
+            .sleepEndOfTrack: "End of track",
+            .sleepPausesIn: "Pauses in %@",
+            .sectionStats: "Your music",
+            .statsSubtitle: "Your most played artists and tracks on Spotify. Click one to open it in Spotify.",
+            .statsTopArtists: "Top artists",
+            .statsTopTracks: "Top tracks",
+            .statsRangeShort: "4 weeks",
+            .statsRangeMedium: "6 months",
+            .statsRangeLong: "1 year",
+            .statsConnectHint: "Connect Spotify to see your top artists and tracks.",
+            .statsOpenSpotify: "Open Spotify settings",
+            .statsReconnectHint: "Reconnect once so Linory may read your top artists and tracks.",
+            .statsEmpty: "Not enough listening history yet.",
+            .statsError: "Your top items could not be loaded.",
 
         ],
         .de: [
@@ -288,9 +327,42 @@ public enum L10n {
             .shuffleKeep: "Diesen Shuffle behalten",
             .shuffleKeptName: "%@ · Gemischt %@",
             .shuffleKept: "Gespeichert als „%@“",
-            // MARK: de mini-player (agent A)
+            // Mini-player
+            .miniPrevious: "Vorheriger Titel",
+            .miniPlay: "Wiedergabe",
+            .miniPause: "Pause",
+            .miniNext: "Nächster Titel",
+            .miniPosition: "Wiedergabeposition",
+            .miniLike: "Zu Lieblingssongs hinzufügen",
+            .miniUnlike: "Aus Lieblingssongs entfernen",
+            .miniChorus: "Refrain",
+            .miniChorusHelp: "Zum Refrain springen",
+            .miniOpenInSpotify: "In Spotify öffnen",
 
-            // MARK: de shuffle upgrades, sleep timer, stats (agent B)
+            // Shuffle upgrades, sleep timer and stats
+            .shuffleMixName: "Mix: %@",
+            .shuffleMixSources: "Quellen mischen",
+            .shuffleAutoContinue: "Weiterspielen",
+            .shuffleContinuing: "Füge die nächste Runde hinzu …",
+            .shuffleFull: "Linory Shuffle ist voll. Mischen & abspielen beginnt neu.",
+            .shuffleUpNext: "Als Nächstes",
+            .sleepTimer: "Sleep-Timer",
+            .sleepOff: "Aus",
+            .sleepMinutes: "%ld Min.",
+            .sleepEndOfTrack: "Ende des Titels",
+            .sleepPausesIn: "Pausiert in %@",
+            .sectionStats: "Deine Musik",
+            .statsSubtitle: "Deine meistgehörten Künstler und Titel auf Spotify. Klicke einen an, um ihn in Spotify zu öffnen.",
+            .statsTopArtists: "Top-Künstler",
+            .statsTopTracks: "Top-Titel",
+            .statsRangeShort: "4 Wochen",
+            .statsRangeMedium: "6 Monate",
+            .statsRangeLong: "1 Jahr",
+            .statsConnectHint: "Verbinde Spotify, um deine Top-Künstler und -Titel zu sehen.",
+            .statsOpenSpotify: "Spotify-Einstellungen öffnen",
+            .statsReconnectHint: "Verbinde dich einmal neu, damit Linory deine Top-Künstler und -Titel lesen darf.",
+            .statsEmpty: "Noch nicht genug Hörverlauf.",
+            .statsError: "Deine Top-Einträge konnten nicht geladen werden.",
 
         ],
     ]

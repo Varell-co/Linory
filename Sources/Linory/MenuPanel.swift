@@ -26,8 +26,12 @@ struct MenuPanel: View {
     @State private var expanded: Section?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false
+    @AppStorage(ShuffleController.autoContinueKey) private var autoContinue = true
+    @ObservedObject private var sleep = SleepTimerController.shared
+    /// The mix checklist under the source picker.
+    @State private var mixing = false
 
-    enum Section: CaseIterable { case position, source, shuffle }
+    enum Section: CaseIterable { case position, source, shuffle, sleep }
 
     init(model: PlayerModel, actions: MenuActions, auth: SpotifyAuth, shuffle: ShuffleController, expanded: Section? = nil, measuring: Bool = false) {
         _model = ObservedObject(wrappedValue: model)
@@ -53,6 +57,8 @@ struct MenuPanel: View {
             if expanded == .source { sourcePicker.transition(sectionTransition) }
             disclosureRow("shuffle", t(.trueShuffle), .shuffle)
             if expanded == .shuffle { shuffleSection.transition(sectionTransition) }
+            disclosureRow("moon.zzz", t(.sleepTimer), .sleep, detail: sleep.remaining.map { SleepTimer.format($0) })
+            if expanded == .sleep { sleepOptions.transition(sectionTransition) }
             Divider().padding(.horizontal, 6).padding(.vertical, 4)
             MenuRow(symbol: "gearshape", title: t(.settingsMenu), shortcut: "⌘,", action: actions.openSettings)
                 .keyboardShortcut(",", modifiers: .command)
@@ -75,30 +81,42 @@ struct MenuPanel: View {
         reduceMotion ? .opacity : .opacity.combined(with: .offset(y: -6))
     }
 
-    /// Same header as the overlay: cover art, title, artist.
+    /// Same header as the overlay (cover art, title, artist), plus the mini-player controls while a track plays.
     private var nowPlaying: some View {
         let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
-        return HStack(spacing: 10) {
-            ZStack {
-                shape.fill(.quaternary)
-                if let image = model.artwork {
-                    Image(nsImage: image).resizable().aspectRatio(contentMode: .fill).transition(.opacity)
-                } else if model.track != nil {
-                    Image(systemName: "music.note").font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary)
-                } else {
-                    LinorySymbol().padding(7)
+        return VStack(spacing: 6) {
+            HStack(spacing: 10) {
+                SpotifyTrackLink(track: model.track, language: language) {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            shape.fill(.quaternary)
+                            if let image = model.artwork {
+                                Image(nsImage: image).resizable().aspectRatio(contentMode: .fill).transition(.opacity)
+                            } else if model.track != nil {
+                                Image(systemName: "music.note").font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary)
+                            } else {
+                                LinorySymbol().padding(7)
+                            }
+                        }
+                        .frame(width: 36, height: 36)
+                        .clipShape(shape)
+                        .overlay(shape.strokeBorder(.primary.opacity(0.08)))
+                        .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(model.track?.title ?? Brand.name).font(.headline)
+                            Text(model.track.map { $0.artist } ?? t(.tagline)).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        .lineLimit(1)
+                    }
                 }
+                Spacer(minLength: 0)
+                LikeButton(library: model.library, track: model.track, language: language)
             }
-            .frame(width: 36, height: 36)
-            .clipShape(shape)
-            .overlay(shape.strokeBorder(.primary.opacity(0.08)))
-            .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(model.track?.title ?? Brand.name).font(.headline)
-                Text(model.track.map { $0.artist } ?? t(.tagline)).font(.subheadline).foregroundStyle(.secondary)
+            // Measured with the controls, so a track that starts while the menu is open still fits.
+            if model.track != nil || measuring {
+                Scrubber(model: model, language: language).padding(.top, 4)
+                TransportButtons(model: model, language: language, size: 14)
             }
-            .lineLimit(1)
-            Spacer(minLength: 0)
         }
         .padding(.horizontal, 6).padding(.top, 6)
     }
@@ -110,10 +128,12 @@ struct MenuPanel: View {
         }
     }
 
-    private func disclosureRow(_ symbol: String, _ title: String, _ section: Section) -> some View {
+    /// `detail` is a short status before the chevron, such as the sleep timer's remaining time.
+    private func disclosureRow(_ symbol: String, _ title: String, _ section: Section, detail: String? = nil) -> some View {
         MenuRow(symbol: symbol, title: title, action: {
             withAnimation(reduceMotion ? .easeOut(duration: 0.15) : Motion.lineChange) { expanded = expanded == section ? nil : section }
         }) {
+            if let detail { Text(detail).font(.system(size: 12)).monospacedDigit().foregroundStyle(.secondary) }
             Image(systemName: "chevron.right")
                 .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
                 .rotationEffect(.degrees(expanded == section ? 90 : 0))
@@ -141,11 +161,21 @@ struct MenuPanel: View {
     @ViewBuilder private var shuffleSection: some View {
         if auth.isConnected || measuring {
             VStack(alignment: .leading, spacing: 6) {
-                Picker("", selection: Binding(get: { shuffle.selectedSourceID }, set: { shuffle.select($0) })) {
-                    ForEach(pickerSources) { source in Text(source.name ?? t(.shuffleSourceLiked)).tag(source.id) }
+                HStack(spacing: 6) {
+                    Picker("", selection: Binding(get: { shuffle.selectedSourceID }, set: { shuffle.select($0) })) {
+                        ForEach(pickerSources) { source in Text(source.name ?? t(.shuffleSourceLiked)).tag(source.id) }
+                    }
+                    .pickerStyle(.menu).labelsHidden()
+                    Button { withAnimation(Motion.easeOut(0.2)) { mixing.toggle() } } label: {
+                        Image(systemName: "square.stack.3d.up").font(.system(size: 13))
+                            .foregroundStyle(mixing || shuffle.selectedMembers.count > 1 ? Brand.waveBlue : .secondary)
+                            .frame(width: 24, height: 22).contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressableStyle(scale: 0.9))
+                    .help(t(.shuffleMixSources))
                 }
-                .pickerStyle(.menu).labelsHidden()
                 .disabled(shuffle.activity != nil)
+                if mixing || measuring { mixList }
                 Button(action: shuffle.shuffleAndPlay) {
                     HStack(spacing: 6) {
                         if shuffle.activity != nil { ProgressView().controlSize(.mini) } else { Image(systemName: "shuffle") }
@@ -160,8 +190,11 @@ struct MenuPanel: View {
                 .buttonStyle(PressableStyle(scale: 0.97))
                 .disabled(shuffle.activity != nil)
                 shuffleStatus
+                let upNext = measuring ? Array(repeating: (uri: "", info: ShuffleTrackInfo(name: "—", artist: "—", artistID: nil)), count: 3) : shuffle.upNext
+                if !upNext.isEmpty { upNextList(upNext) }
             }
             .padding(.horizontal, 10).padding(.bottom, 4)
+            toggleRow("infinity", t(.shuffleAutoContinue), isOn: autoContinue) { autoContinue.toggle() }
             let current = model.track.map { $0.source == .spotify ? $0.rawID : "" }
             if measuring || (shuffle.currentInShuffle && current == shuffle.currentURI) {
                 MenuRow(symbol: "minus.circle", title: t(.shuffleRemove), action: shuffle.removeCurrent)
@@ -185,11 +218,54 @@ struct MenuPanel: View {
         }
     }
 
-    /// Before the playlists load, a remembered playlist still needs a tag, or the picker shows nothing.
+    /// Sources, then mixes shuffled before. Before the playlists load, a remembered playlist still needs a tag, or the
+    /// picker shows nothing.
     private var pickerSources: [ShuffleSource] {
-        let sources = shuffle.sources
-        if sources.contains(where: { $0.id == shuffle.selectedSourceID }) { return sources }
-        return sources + [ShuffleSource(id: shuffle.selectedSourceID, name: "…")]
+        let sources = shuffle.sources + shuffle.mixes
+        let id = shuffle.selectedSourceID
+        if sources.contains(where: { $0.id == id }) { return sources }
+        return sources + [ShuffleSource(id: id, name: shuffle.isAvailable(id) ? shuffle.sourceName(id) : "…")]
+    }
+
+    /// Checklist that builds a mix: the selection becomes every checked source.
+    private var mixList: some View {
+        let rowHeight: CGFloat = 24
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(shuffle.sources) { source in
+                    let on = shuffle.selectedMembers.contains(source.id)
+                    Button { shuffle.toggleMember(source.id) } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: on ? "checkmark.circle.fill" : "circle").foregroundStyle(on ? Brand.waveBlue : .secondary)
+                            Text(source.name ?? t(.shuffleSourceLiked)).lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .font(.system(size: 12)).padding(.horizontal, 8).frame(height: rowHeight).contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressableStyle(scale: 0.98))
+                }
+            }
+        }
+        // Five rows, then it scrolls; measuring reserves the full height.
+        .frame(height: measuring ? rowHeight * 5 : min(CGFloat(shuffle.sources.count), 5) * rowHeight)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .transition(sectionTransition)
+    }
+
+    /// Display only; each row opens the track in Spotify.
+    private func upNextList(_ items: [(uri: String, info: ShuffleTrackInfo)]) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(t(.shuffleUpNext).uppercased()).font(.system(size: 10, weight: .semibold)).tracking(0.6).foregroundStyle(.tertiary)
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                Button { SpotifyLink.open(item.uri) } label: {
+                    (Text(item.info.name) + Text(verbatim: "  \(item.info.artist)").foregroundColor(.secondary))
+                        .font(.system(size: 11.5)).lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                }
+                .buttonStyle(PressableStyle(scale: 0.98))
+            }
+        }
+        .padding(.top, 2)
     }
 
     @ViewBuilder private var shuffleStatus: some View {
@@ -202,6 +278,7 @@ struct MenuPanel: View {
                 case .loading: Text(t(.shuffleLoading))
                 case .shuffling(let count): Text(L10n.string(.shuffleBusy, count, language: language))
                 case .working: Text(verbatim: "…")
+                case .continuing: Text(t(.shuffleContinuing))
                 }
             } else if let notice = shuffle.notice {
                 Text(notice.text(language: language))
@@ -216,6 +293,31 @@ struct MenuPanel: View {
             }
         }
         .font(.system(size: 11.5)).foregroundStyle(.secondary).monospacedDigit()
+    }
+
+    // MARK: Sleep timer
+
+    private var sleepOptions: some View {
+        let options: [(mode: SleepTimer.Mode?, title: String)] = [(nil, t(.sleepOff))]
+            + SleepTimer.presets.map { (SleepTimer.Mode.minutes($0), L10n.string(.sleepMinutes, $0, language: language)) }
+            + [(.endOfTrack, t(.sleepEndOfTrack))]
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
+            ForEach(options, id: \.title) { option in
+                let selected = sleep.timer?.mode == option.mode
+                Button { sleep.start(option.mode, model: model) } label: {
+                    Text(option.title).font(.system(size: 11.5, weight: .medium)).lineLimit(1).minimumScaleFactor(0.8)
+                        .foregroundStyle(selected ? Color.white : .primary)
+                        .frame(maxWidth: .infinity).padding(.vertical, 7)
+                        .background(selected ? AnyShapeStyle(Brand.waveBlue) : AnyShapeStyle(.quaternary),
+                                    in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableStyle(scale: 0.96))
+                // "End of track" needs a track to wait for.
+                .disabled(option.mode == .endOfTrack && model.track == nil)
+            }
+        }
+        .padding(.horizontal, 10).padding(.bottom, 6)
     }
 
     private var sourcePicker: some View {

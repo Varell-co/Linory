@@ -64,6 +64,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if !hotKey.register(handler: { [weak self] in self?.toggleVisibility() }) { showHotKeyError() }
         model.start()
         spotify.restore()
+        // Mini-player: the heart asks Spotify whether the current track is liked.
+        model.library.attach(spotify)
         visibilityTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.applyVisibility(animated: true) }
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             self?.applyLanguage()

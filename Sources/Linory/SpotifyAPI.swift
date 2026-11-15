@@ -27,10 +27,6 @@ actor SpotifyAPI {
         return SpotifyPlaylist.readable(playlists, userID: userID)
     }
 
-    func likedTrackURIs() async throws -> [String] { try await trackURIs("/me/tracks") }
-
-    func playlistTrackURIs(id: String) async throws -> [String] { try await trackURIs("/playlists/\(id)/items") }
-
     func createPlaylist(name: String, description: String) async throws -> String {
         struct Created: Decodable { let id: String }
         let body: [String: Any] = ["name": name, "description": description, "public": false]
@@ -52,7 +48,20 @@ actor SpotifyAPI {
         }
     }
 
-    // MARK: Library and liked state (agent A adds methods here)
+    // MARK: Library and liked state
+
+    /// `GET /me/library/contains` answers with one bool per URI.
+    func isSaved(uri: String) async throws -> Bool {
+        try await JSONDecoder().decode([Bool].self, from: send("GET", "/me/library/contains?uris=\(Self.query(uri))").data).first ?? false
+    }
+
+    func save(uri: String) async throws { try await send("PUT", "/me/library?uris=\(Self.query(uri))") }
+
+    func unsave(uri: String) async throws { try await send("DELETE", "/me/library?uris=\(Self.query(uri))") }
+
+    private static func query(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: ":-_."))) ?? value
+    }
 
     // MARK: Playback
 
@@ -76,30 +85,38 @@ actor SpotifyAPI {
         return try JSONDecoder().decode(SpotifyCurrentlyPlaying.self, from: data)
     }
 
-    // MARK: Shuffle upgrades and stats (agent B adds methods here)
+    // MARK: Shuffle and stats
 
-    // MARK: Paging
-
-    /// Pages of 50 (the API maximum). After the first page the rest load 4 at a time, so 10,000 liked songs take
-    /// about 50 rounds instead of 200. Order does not matter: the result is shuffled anyway.
-    private func trackURIs(_ path: String) async throws -> [String] {
+    /// Tracks of Liked Songs or one playlist, with name and primary artist. After the first page, pages load 4 at a time.
+    func tracks(source id: String) async throws -> [SpotifyTrackInfo] {
+        let path = id == ShuffleState.likedSourceID ? "/me/tracks" : "/playlists/\(id)/items"
         let first = try await JSONDecoder().decode(SpotifyTrackPage.self, from: send("GET", "\(path)?limit=50").data)
-        guard first.next != nil, let total = first.total else { return first.uris }
-        var uris = first.uris
+        guard first.next != nil, let total = first.total else { return first.tracks }
+        var tracks = first.tracks
         let offsets = Array(stride(from: 50, to: total, by: 50))
         for chunk in stride(from: 0, to: offsets.count, by: 4).map({ offsets[$0..<min($0 + 4, offsets.count)] }) {
-            try await withThrowingTaskGroup(of: [String].self) { group in
+            try await withThrowingTaskGroup(of: [SpotifyTrackInfo].self) { group in
                 for offset in chunk {
-                    group.addTask { try await self.trackPage("\(path)?limit=50&offset=\(offset)") }
+                    group.addTask {
+                        try await JSONDecoder().decode(SpotifyTrackPage.self, from: self.send("GET", "\(path)?limit=50&offset=\(offset)").data).tracks
+                    }
                 }
-                for try await page in group { uris += page }
+                for try await page in group { tracks += page }
             }
         }
-        return uris
+        return tracks
     }
 
-    private func trackPage(_ path: String) async throws -> [String] {
-        try await JSONDecoder().decode(SpotifyTrackPage.self, from: send("GET", path).data).uris
+    /// Appends after the existing items (auto-continue), in batches of 100.
+    func appendItems(playlistID: String, uris: [String]) async throws {
+        for start in stride(from: 0, to: uris.count, by: Self.batchSize) {
+            try await send("POST", "/playlists/\(playlistID)/items", json: ["uris": Array(uris[start..<min(start + Self.batchSize, uris.count)])])
+        }
+    }
+
+    /// `GET /me/top/{artists|tracks}`, the 10 most played in the range. Needs `user-top-read`.
+    func topItems(_ type: String, range: SpotifyTimeRange) async throws -> [SpotifyTopItem] {
+        try await JSONDecoder().decode(SpotifyTopItem.Page.self, from: send("GET", "/me/top/\(type)?time_range=\(range.rawValue)&limit=10").data).items
     }
 
     /// Refreshes and retries once on 401; waits once for `Retry-After` on 429.

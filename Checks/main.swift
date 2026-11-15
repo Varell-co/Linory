@@ -2,8 +2,119 @@ import Foundation
 import CoreGraphics
 import LyricsCore
 
-/// Agent A: chorus detection, seek targets, sync clock.
+/// Chorus detection, seek targets, sync clock.
 func checkMiniPlayer() throws {
+    checkClockSync()
+    checkClockSeek()
+    checkChorus()
+}
+
+func checkClockSync() {
+    let t0 = Date(timeIntervalSince1970: 1_000)
+    func at(_ seconds: Double) -> Date { t0.addingTimeInterval(seconds) }
+    var clock = PlaybackClock()
+    clock.update(position: 10, playing: true, duration: 100, at: t0)
+
+    // Clock 0.2 s ahead: no jump back, but it catches up with the player within the slew time.
+    var ahead = clock
+    ahead.update(position: 10.6, playing: true, duration: 100, at: at(0.8))
+    precondition(abs(ahead.position(at: at(0.8)) - 10.8) < 0.001, "no visible jump back")
+    var previous = ahead.position(at: at(0.8))
+    for step in 1...20 {
+        let now = ahead.position(at: at(0.8 + Double(step) * 0.05))
+        precondition(now > previous, "a slewing clock never runs backwards")
+        previous = now
+    }
+    precondition(abs(ahead.position(at: at(0.8 + PlaybackClock.slewDuration)) - (10.6 + PlaybackClock.slewDuration)) < 0.001, "drift is corrected")
+    precondition(abs(ahead.position(at: at(3)) - 12.8) < 0.001, "then runs in step with the player")
+
+    // A real seek back jumps.
+    var back = clock
+    back.update(position: 10.2, playing: true, duration: 100, at: at(0.8))
+    precondition(abs(back.position(at: at(0.8)) - 10.2) < 0.001, "0.6 s back is a seek")
+
+    // Clock behind the player jumps forward at once: forward jumps never flicker.
+    var behind = clock
+    behind.update(position: 10.85, playing: true, duration: 100, at: at(0.8))
+    precondition(abs(behind.position(at: at(0.8)) - 10.85) < 0.001, "behind catches up at once")
+
+    // Anchoring with the sample time instead of the arrival time keeps a slow read from lagging the lyrics.
+    var sampled = PlaybackClock()
+    sampled.update(position: 30, playing: true, duration: 100, at: at(0.0))
+    precondition(abs(sampled.position(at: at(0.09)) - 30.09) < 0.001, "the read time counts as played")
+
+    // Resuming after a pause anchors fresh, and a new slew replaces an old one.
+    var resumed = ahead
+    resumed.update(position: 11, playing: false, duration: 100, at: at(1))
+    resumed.update(position: 11, playing: true, duration: 100, at: at(5))
+    precondition(abs(resumed.position(at: at(6)) - 12) < 0.001 && resumed.slew == 0, "resume anchors fresh")
+}
+
+func checkClockSeek() {
+    let t0 = Date(timeIntervalSince1970: 2_000)
+    func at(_ seconds: Double) -> Date { t0.addingTimeInterval(seconds) }
+    var clock = PlaybackClock()
+    clock.update(position: 100, playing: true, duration: 200, at: t0)
+    clock.seek(to: 40, at: at(1))
+    precondition(clock.position(at: at(1)) == 40 && clock.position(at: at(1.2)) == 40, "holds at the target")
+
+    var stale = clock
+    stale.update(position: 101.05, playing: true, duration: 200, at: at(1.05))
+    precondition(stale.position(at: at(1.1)) == 40 && stale.pendingSeek == 40, "a read from before the seek is ignored")
+
+    var buffering = clock
+    buffering.update(position: 40, playing: true, duration: 200, at: at(1.2))
+    precondition(buffering.position(at: at(1.3)) == 40 && buffering.pendingSeek == 40, "still buffering: hold")
+    buffering.update(position: 40.1, playing: true, duration: 200, at: at(1.4))
+    precondition(buffering.pendingSeek == nil && abs(buffering.position(at: at(1.9)) - 40.6) < 0.001, "runs once the player moves")
+
+    var paused = clock
+    paused.update(position: 40, playing: false, duration: 200, at: at(1.1))
+    precondition(paused.pendingSeek == nil && paused.position(at: at(9)) == 40, "paused seek is confirmed at once")
+
+    var timeout = clock
+    timeout.update(position: 120, playing: true, duration: 200, at: at(1 + PlaybackClock.seekTimeout + 0.1))
+    precondition(timeout.pendingSeek == nil && timeout.position(at: at(1 + PlaybackClock.seekTimeout + 0.1)) == 120, "gives up waiting")
+
+    var clamped = clock
+    clamped.seek(to: 500, at: at(2))
+    precondition(clamped.anchorPosition == 200, "seeks clamp to the duration")
+    clamped.seek(to: -3, at: at(2))
+    precondition(clamped.anchorPosition == 0, "and to the start")
+}
+
+/// Invented lyrics: verse, chorus, verse, chorus, bridge, chorus.
+func checkChorus() {
+    let verse1 = ["Paper boats on Sunday", "Drifting past the mill"]
+    let chorus = ["Hold the lantern higher", "Let the river sing", "Hold the lantern higher!"]
+    let verse2 = ["Copper leaves in autumn", "Falling on the hill"]
+    let bridge = ["Quiet now", "Quiet now"]
+    var time = 0.0
+    var lines: [LyricLine] = []
+    var starts: [Double] = []
+    for (part, isChorus) in [(verse1, false), (chorus, true), (verse2, false), (chorus.map { $0.uppercased() }, true), ([""], false), (bridge, false), (chorus, true)] {
+        if isChorus { starts.append(time + 5) }
+        for text in part { time += 5; lines.append(LyricLine(time: time, text: text)) }
+    }
+    precondition(Chorus.starts(in: lines) == starts, "finds every chorus, ignoring case and punctuation")
+    precondition(Chorus.next(after: 0, starts: starts) == starts[0], "first chorus from the intro")
+    precondition(Chorus.next(after: starts[0], starts: starts) == starts[1], "after jumping, the next one")
+    precondition(Chorus.next(after: starts[0] - 3, starts: starts) == starts[0], "the coming chorus")
+    precondition(Chorus.next(after: starts[2] + 1, starts: starts) == starts[0], "wraps to the first")
+
+    let noRepeat = (1...8).map { LyricLine(time: Double($0), text: "Line number \($0)") }
+    precondition(Chorus.starts(in: noRepeat).isEmpty, "no chorus without repetition")
+    let single = [LyricLine(time: 1, text: "Echo"), LyricLine(time: 2, text: "Other"), LyricLine(time: 3, text: "Echo"), LyricLine(time: 4, text: "More")]
+    precondition(Chorus.starts(in: single).isEmpty, "one repeated line is not a chorus")
+
+    // A short hook repeated more often wins over a longer group repeated less.
+    let hook = ["Na na hey", "Na na ho"]
+    var hookLines: [LyricLine] = []
+    for (i, text) in (hook + ["Verse one here"] + hook + ["Verse two here"] + hook + ["End"]).enumerated() {
+        hookLines.append(LyricLine(time: Double(i), text: text))
+    }
+    precondition(Chorus.starts(in: hookLines) == [0, 3, 6], "most repeated group wins")
+    precondition(Chorus.next(after: 0, starts: []) == nil)
 }
 
 func checkParsing() {
@@ -293,8 +404,152 @@ func checkSpotifyPKCE() throws {
     precondition(user.id == "u1" && user.displayName == nil)
 }
 
-/// Agent B: artist spread, multi-source, auto-continue, sleep timer, stats decoding.
+/// Artist spread, multi-source, auto-continue, sleep timer, stats decoding.
 func checkShuffleUpgrades() throws {
+    try checkArtistSpread()
+    checkAutoContinue()
+    try checkShuffleMetadata()
+    checkSleepTimer()
+    try checkTopItems()
+}
+
+/// Number of neighbours that share an artist.
+func adjacentRepeats(_ order: [String], _ artists: [String: String]) -> Int {
+    zip(order, order.dropFirst()).filter { artists[$0] != nil && artists[$0] == artists[$1] }.count
+}
+
+func checkArtistSpread() throws {
+    // 4 artists with 6, 5, 3 and 2 tracks: always separable.
+    var artists: [String: String] = [:]
+    var uris: [String] = []
+    for (artist, count) in [("a", 6), ("b", 5), ("c", 3), ("d", 2)] {
+        for n in 0..<count { uris.append("spotify:track:\(artist)\(n)"); artists["spotify:track:\(artist)\(n)"] = artist }
+    }
+    for seed in 0..<50 {
+        var rng = SplitMix64(state: UInt64(seed))
+        let order = ArtistSpread.arrange(uris, artists: artists, using: &rng)
+        precondition(order.sorted() == uris.sorted(), "a permutation")
+        precondition(adjacentRepeats(order, artists) == 0, "no neighbours by the same artist when avoidable")
+    }
+    // The tightest case: 5 of one artist among 9 tracks fits only as a _ a _ a _ a _ a; with "a" just before, it cannot start.
+    let tight = (0..<5).map { "spotify:track:t\($0)" } + (0..<4).map { "spotify:track:o\($0)" }
+    let tightArtists = Dictionary(uniqueKeysWithValues: tight.map { ($0, $0.hasPrefix("spotify:track:t") ? "a" : "o\($0.last!)") })
+    var rng = SplitMix64(state: 7)
+    let tightOrder = ArtistSpread.arrange(tight, artists: tightArtists, using: &rng)
+    precondition(adjacentRepeats(tightOrder, tightArtists) == 0 && tightArtists[tightOrder[0]] == "a", "the forced layout is found")
+    let seam = ArtistSpread.arrange(Array(tight.prefix(4)) + Array(tight.suffix(4)), artists: tightArtists, after: "a", using: &rng)
+    precondition(tightArtists[seam[0]] != "a" && adjacentRepeats(seam, tightArtists) == 0, "the previous round's last artist is respected")
+
+    // Unavoidable: 6 of one artist and 2 others need at least 3 repeats. Still a random permutation of every track.
+    let heavy = (0..<6).map { "spotify:track:h\($0)" } + ["spotify:track:x", "spotify:track:y"]
+    let heavyArtists = Dictionary(uniqueKeysWithValues: heavy.map { ($0, $0.hasPrefix("spotify:track:h") ? "h" : $0) })
+    var heavyOrders = Set<[String]>()
+    for seed in 0..<20 {
+        var r = SplitMix64(state: UInt64(seed))
+        let order = ArtistSpread.arrange(heavy, artists: heavyArtists, using: &r)
+        precondition(order.sorted() == heavy.sorted() && (3...5).contains(adjacentRepeats(order, heavyArtists)), "unavoidable repeats")
+        heavyOrders.insert(order)
+    }
+    precondition(heavyOrders.count > 10, "the unavoidable case stays random")
+
+    // Unknown artists (URI-only data) never block anything; same seed gives the same order.
+    var s1 = SplitMix64(state: 9), s2 = SplitMix64(state: 9), s3 = SplitMix64(state: 10)
+    let plain = (0..<30).map { "spotify:track:p\($0)" }
+    let p1 = ArtistSpread.arrange(plain, artists: [:], using: &s1)
+    precondition(p1 == ArtistSpread.arrange(plain, artists: [:], using: &s2) && p1 != ArtistSpread.arrange(plain, artists: [:], using: &s3))
+    precondition(Set(p1) == Set(plain))
+
+    // Every position is reachable: over many seeds each track starts the order at least once.
+    var firsts = Set<String>()
+    for seed in 0..<400 {
+        var r = SplitMix64(state: UInt64(seed))
+        firsts.insert(ArtistSpread.arrange(uris, artists: artists, using: &r)[0])
+    }
+    precondition(firsts.count == uris.count, "random, not a fixed pattern")
+
+    // Mix IDs: stable, order-independent, deduped; one member is the source itself.
+    let mix = ShuffleMix.id(["p2", "liked", "p1", "p2"])
+    precondition(mix == "mix:liked,p1,p2" && mix == ShuffleMix.id(["p1", "p2", "liked"]), "stable mix ID")
+    precondition(ShuffleMix.members(mix!) == ["liked", "p1", "p2"] && ShuffleMix.isMix(mix!))
+    precondition(ShuffleMix.id(["p1"]) == "p1" && ShuffleMix.members("p1") == ["p1"] && ShuffleMix.id([]) == nil && !ShuffleMix.isMix("liked"))
+}
+
+func checkAutoContinue() {
+    let source = (0..<6).map { "spotify:track:\($0)" }
+    var rng = SplitMix64(state: 3)
+    var cycle = ShuffleCycle()
+    let first = cycle.nextOrder(from: source, using: &rng)
+    for uri in first.dropLast() { cycle.markPlayed(uri) }
+    // The second-to-last started: the last one is still pending, so the next round starts a new cycle without it.
+    let pending: Set<String> = [first.last!]
+    let next = cycle.nextOrder(from: source, excluding: pending, using: &rng)
+    precondition(Set(next) == Set(source).subtracting(pending) && cycle.played.isEmpty, "the next round skips the pending track")
+    cycle.markPlayed(first.last!)
+    precondition(cycle.progress == (1, 6), "the pending track counts in the new cycle when it plays")
+    // Unplayed tracks outside the order (beyond the 10,000 cap) come first, before a new cycle.
+    var partial = ShuffleCycle()
+    _ = partial.nextOrder(from: source, using: &rng)
+    for uri in source.prefix(4) { partial.markPlayed(uri) }
+    let rest = partial.nextOrder(from: source, excluding: [source[4]], using: &rng)
+    precondition(rest == [source[5]] && partial.played.count == 4, "the running cycle finishes first")
+
+    var state = ShuffleState()
+    state.currentOrder = ["a", "b", "c", "a", "d"]
+    precondition(state.index(of: "a") == 0)
+    state.playingIndex = 2
+    precondition(state.index(of: "a") == 3 && state.index(of: "b") == 1, "later rounds repeat URIs")
+    precondition(!state.needsNextRound(at: 2) && state.needsNextRound(at: 3) && state.needsNextRound(at: 4))
+}
+
+func checkShuffleMetadata() throws {
+    let items = #"""
+    {"items":[{"item":{"type":"track","uri":"spotify:track:a","name":"Song A","artists":[{"id":"ar1","name":"Artist One"},{"id":"ar2","name":"Two"}]}},
+              {"item":{"type":"track","uri":"spotify:track:b"}}],"next":null,"total":2}
+    """#
+    let page = try JSONDecoder().decode(SpotifyTrackPage.self, from: Data(items.utf8))
+    precondition(page.tracks == [SpotifyTrackInfo(uri: "spotify:track:a", name: "Song A", artistName: "Artist One", artistID: "ar1"),
+                                 SpotifyTrackInfo(uri: "spotify:track:b")], "playlist items: primary artist and name; URI-only still works")
+    let liked = #"{"items":[{"track":{"type":"track","uri":"spotify:track:c","name":"Song C","artists":[{"id":"ar3","name":"Three"}]}}],"next":null}"#
+    let likedPage = try JSONDecoder().decode(SpotifyTrackPage.self, from: Data(liked.utf8))
+    precondition(likedPage.tracks.first?.artistID == "ar3" && likedPage.tracks.first?.name == "Song C" && likedPage.uris == ["spotify:track:c"], "liked songs")
+
+    // A state file from before these fields existed.
+    let old = #"{"cycles":{"liked":{"played":["spotify:track:a"],"removed":[],"total":3}},"shufflePlaylistID":"s","activeSourceID":"liked","currentOrder":["spotify:track:a","spotify:track:b"],"selectedSourceID":"liked"}"#
+    let decoded = try JSONDecoder().decode(ShuffleState.self, from: Data(old.utf8))
+    precondition(decoded.currentOrder.count == 2 && decoded.cycles["liked"]?.progress.played == 1 && decoded.cycles["liked"]?.total == 3 && decoded.trackInfo.isEmpty && decoded.playingIndex == nil, "old state files load")
+    precondition((try? JSONDecoder().decode(ShuffleState.self, from: Data("{}".utf8))) == ShuffleState(), "an empty file loads")
+    var state = decoded
+    state.trackInfo["spotify:track:a"] = ShuffleTrackInfo(name: "Song A", artist: "Artist One", artistID: "ar1")
+    state.playingIndex = 1
+    let roundTrip = try JSONDecoder().decode(ShuffleState.self, from: JSONEncoder().encode(state))
+    precondition(roundTrip == state, "new fields round trip")
+}
+
+func checkSleepTimer() {
+    let start = Date(timeIntervalSince1970: 1_000)
+    let timer = SleepTimer(.minutes(15), now: start, trackID: nil)!
+    precondition(timer.remaining(now: start, trackID: nil, trackRemaining: 0) == 900)
+    precondition(timer.remaining(now: start.addingTimeInterval(899.5), trackID: "x", trackRemaining: 10) == 0.5, "minutes ignore the track")
+    precondition(timer.remaining(now: start.addingTimeInterval(1_000), trackID: nil, trackRemaining: 0) == 0)
+
+    precondition(SleepTimer(.endOfTrack, now: start, trackID: nil) == nil, "end of track needs a track")
+    let end = SleepTimer(.endOfTrack, now: start, trackID: "t1")!
+    precondition(end.remaining(now: start, trackID: "t1", trackRemaining: 42) == 42)
+    precondition(end.remaining(now: start, trackID: "t1", trackRemaining: 0.5) == 0, "pauses just before the end")
+    precondition(end.remaining(now: start, trackID: "t2", trackRemaining: 200) == 0, "a new track means the old one ended")
+    precondition(end.remaining(now: start, trackID: nil, trackRemaining: 0) == 0)
+
+    precondition(SleepTimer.format(59.2) == "1:00" && SleepTimer.format(605) == "10:05" && SleepTimer.format(3_725) == "1:02:05")
+}
+
+func checkTopItems() throws {
+    let artists = #"{"items":[{"id":"a1","name":"Artist","uri":"spotify:artist:a1","genres":["x"]},null,{"name":"no id"}],"total":2}"#
+    let artistPage = try JSONDecoder().decode(SpotifyTopItem.Page.self, from: Data(artists.utf8))
+    precondition(artistPage.items.map(\.uri) == ["spotify:artist:a1"] && artistPage.items[0].artists.isEmpty, "top artists; bad entries skipped")
+    let tracks = #"{"items":[{"id":"t1","name":"Song","uri":"spotify:track:t1","artists":[{"name":"A"},{"name":"B"}]}]}"#
+    let trackPage = try JSONDecoder().decode(SpotifyTopItem.Page.self, from: Data(tracks.utf8))
+    precondition(trackPage.items.first?.name == "Song" && trackPage.items.first?.artists == "A, B", "top tracks with artist names")
+    precondition(SpotifyTimeRange.allCases.map(\.rawValue) == ["short_term", "medium_term", "long_term"])
 }
 
 /// Seeded generator, so shuffle checks are repeatable.

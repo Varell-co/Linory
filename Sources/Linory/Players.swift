@@ -65,6 +65,56 @@ struct MusicPlayer: MediaPlayer {
     }
 }
 
+/// A fresh position with the moment it was true.
+struct PositionSample {
+    let position: Double
+    let sampledAt: Date
+    let readTime: TimeInterval
+}
+
+/// Transport commands from the mini-player and lyric clicks.
+enum PlayerCommand {
+    case playPause, next, previous
+    case seek(Double)
+
+    var script: String {
+        switch self {
+        case .playPause: return "playpause"
+        case .next: return "next track"
+        case .previous: return "previous track"
+        case .seek(let seconds): return "set player position to \(max(0, seconds))"
+        }
+    }
+}
+
+extension MediaPlayer {
+    /// A single Apple event, so the midpoint of the call is when the player sampled its position.
+    /// The full `read()` sends seven events and its position lands near the end of the call (measured), so its
+    /// midpoint would put the lyrics about 40 ms ahead.
+    func readPosition() -> PositionSample? {
+        let script = """
+        if application id "\(source.bundleID)" is not running then return -1
+        tell application id "\(source.bundleID)" to return player position
+        """
+        var error: NSDictionary?
+        let start = Date()
+        guard let descriptor = NSAppleScript(source: script)?.executeAndReturnError(&error) else { return nil }
+        let end = Date()
+        let position = descriptor.doubleValue
+        guard position >= 0 else { return nil }
+        let readTime = end.timeIntervalSince(start)
+        return PositionSample(position: position, sampledAt: start.addingTimeInterval(readTime / 2), readTime: readTime)
+    }
+
+    /// Like reading, never launches the player: commands to a player that is not running are dropped.
+    @discardableResult
+    func perform(_ command: PlayerCommand) -> Bool {
+        guard isRunning else { return false }
+        var error: NSDictionary?
+        return NSAppleScript(source: "tell application id \"\(source.bundleID)\" to \(command.script)")?.executeAndReturnError(&error) != nil
+    }
+}
+
 /// Spotify write commands, used only by True Shuffle.
 enum SpotifyControl {
     private static let queue = DispatchQueue(label: "spotify-control")

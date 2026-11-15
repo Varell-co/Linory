@@ -9,8 +9,10 @@ struct OverlayView: View {
     @AppStorage("overlayOpacity") private var overlayOpacity = 1.0
     @AppStorage("offset") private var offset = 0.0
     @AppStorage("language") private var languageSetting = AppLanguage.system.rawValue
+    @AppStorage("clickThrough") private var clickThrough = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var lines: [LyricLine] = []
+    @State private var hovering = false
 
     /// Previous/next lines are the active line scaled down, so the size change can animate as a transform.
     private static let neighborScale: CGFloat = 0.78
@@ -38,6 +40,14 @@ struct OverlayView: View {
         // 16 pt inset with 22 pt panel corners: inner corners (cover art) use 22 - 16 = 6 pt, so they stay concentric.
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // 8 pt inset with 22 pt panel corners: the bar uses 22 - 8 = 14 pt.
+        .overlay(alignment: .bottom) {
+            if showsControls { controls.padding(8).transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 8))) }
+        }
+        .animation(Motion.easeOut(hovering ? 0.2 : 0.3), value: showsControls)
+        .background(HoverArea { hovering = $0 })
+        // Turning click-through on mid-hover means no exit event ever arrives.
+        .onChange(of: clickThrough) { _ in hovering = false }
         .background(WindowDragArea())
         .background(SystemPanelBackground(cornerRadius: 22).opacity(opacity))
         .opacity(overlayOpacity)
@@ -84,24 +94,64 @@ struct OverlayView: View {
                              startPoint: .top, endPoint: .bottom))
     }
 
+    // MARK: Mini-player
+
+    /// Only on hover, so the overlay stays lyrics first. Click-through means the user wants to click past it.
+    private var showsControls: Bool { hovering && !clickThrough && model.track != nil }
+
+    private var controls: some View {
+        VStack(spacing: 4) {
+            // Equal flexible sides keep the transport centred, with or without a heart or chorus button.
+            HStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    LikeButton(library: model.library, track: model.track, language: language)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity)
+                TransportButtons(model: model, language: language)
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    if !model.chorusStarts.isEmpty {
+                        Button(action: model.jumpToChorus) {
+                            Text(L10n.string(.miniChorus, language: language))
+                                .font(.system(size: 11, weight: .semibold))
+                                .padding(.horizontal, 9).padding(.vertical, 4)
+                                .background(.primary.opacity(0.1), in: Capsule())
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(PressableStyle(scale: 0.94))
+                        .help(L10n.string(.miniChorusHelp, language: language))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            Scrubber(model: model, language: language)
+        }
+        .padding(.horizontal, 12).padding(.top, 6).padding(.bottom, 4)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.primary.opacity(0.08)))
+    }
+
     // MARK: Header
 
     /// Like the Now Playing widget: cover art, title and artist, entering one after another per song.
     private var header: some View {
         HStack(spacing: 10) {
             ZStack(alignment: .leading) {
-                HStack(spacing: 10) {
-                    artwork.modifier(Reveal())
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(model.track?.title ?? L10n.string(.overlayPlaceholder, language: language))
-                            .font(.headline)
-                            .modifier(Reveal(delay: 0.05))
-                        if let artist = model.track?.artist, !artist.isEmpty {
-                            Text(artist).font(.subheadline).foregroundStyle(.secondary)
-                                .modifier(Reveal(delay: 0.1))
+                SpotifyTrackLink(track: model.track, language: language) {
+                    HStack(spacing: 10) {
+                        artwork.modifier(Reveal())
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(model.track?.title ?? L10n.string(.overlayPlaceholder, language: language))
+                                .font(.headline)
+                                .modifier(Reveal(delay: 0.05))
+                            if let artist = model.track?.artist, !artist.isEmpty {
+                                Text(artist).font(.subheadline).foregroundStyle(.secondary)
+                                    .modifier(Reveal(delay: 0.1))
+                            }
                         }
+                        .lineLimit(1)
                     }
-                    .lineLimit(1)
                 }
                 .id(trackKey)
                 .transition(.songSwap)
@@ -188,6 +238,10 @@ struct OverlayView: View {
         .padding(.vertical, (isActive ? 4 : 0) - collapse)
         .opacity(!exists && !isActive ? 0 : distance == 0 ? 1 : distance == 1 ? 0.42 : 0.14)
         .blur(radius: distance >= 2 ? 1.2 : 0)
+        // Synced lines jump the song there. Other rows let clicks through, so the overlay can still be dragged.
+        .contentShape(Rectangle())
+        .onTapGesture { if exists { model.seek(toLyricTime: lines[index].time) } }
+        .allowsHitTesting(exists && model.lyrics?.synced == true)
     }
 
     private static var widthCache: [String: CGFloat] = [:]
