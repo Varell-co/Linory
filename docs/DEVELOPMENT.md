@@ -24,11 +24,10 @@ swift build
 swift run LyricsCoreChecks
 # Create an ad-hoc signed universal ZIP in dist/ (version defaults to the VERSION file):
 bash build-release.sh
-# Build, publish GitHub release vVERSION with the top RELEASE_NOTES.md section,
-# then update Casks/linory.rb (version + sha256), commit and push:
-bash publish-release.sh
+# Release: bump the version, publish on GitHub, update the Homebrew cask:
+bash publish-release.sh          # patch, e.g. 0.3.0 -> 0.3.1 (or: minor, major, 1.2.3)
 ```
 
-`publish-release.sh` needs a clean working tree and a logged-in `gh`. Bump `VERSION` and add the new notes at the top of `RELEASE_NOTES.md` first. Homebrew users get the update through `brew upgrade --cask linory` once the cask commit is pushed.
+`publish-release.sh` needs a clean `main` that matches `origin/main`, and a logged-in `gh`. It drafts release notes from `feat:` and `fix:` commit subjects since the last tag, shows them and asks before publishing (`e` opens them in your editor, `-y` skips the question). To write the notes yourself, add a `# Linory vX.Y.Z` section at the top of `RELEASE_NOTES.md` first. It then commits VERSION, notes and cask as `chore: release X.Y.Z`, tags, publishes the ZIP, and runs `brew upgrade --cask linory` if Linory is installed through Homebrew.
 
 The checks cover LRC parsing, conservative track matching, localization, the playback clock, plain-lyrics timing, the lyrics cache, player selection, Spotify PKCE login parameters, Spotify Web API response decoding, and True Shuffle cycles. They do not replace an end-to-end test with Spotify and Music: verify the automation prompt, loading lyrics, pausing, seeking, changing tracks, the overlay controls, and the global shortcut. For True Shuffle, connect your own Spotify app (see [Usage](USAGE.md#connect-spotify-optional)), then check Shuffle & play, played counting while skipping, Reset, Remove from shuffle, Restore removed, and Keep this shuffle. XCTest is not available in every Command Line Tools installation, so the current checks use a standalone executable.
