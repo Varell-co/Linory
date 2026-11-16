@@ -32,8 +32,9 @@ Play a song in Spotify or Music and allow Linory to control that app when macOS 
 - Moving between screens keeps the same readable text size at each screen's pixel density. The overlay fits the usable area and restores your preferred dimensions when space allows.
 - Lyrics stay on one line and shrink to fit their width. Five nearby lines scroll as playback advances.
 - A lyric that would shrink below 60% of your chosen font size is split into two consecutive entries at a word boundary. Split timing uses word timestamps when available and estimates otherwise.
-- Click **⋯** in the overlay, or left-click the menu-bar icon, to open settings.
-- Right-click the menu-bar icon to position the overlay, toggle click-through, or quit. Turn click-through off before dragging or clicking the overlay again.
+- Click **⋯** in the overlay, or **Settings** in the menu, to open settings.
+- Click the menu-bar icon to open the menu: show or hide the overlay, position it, toggle click-through, or quit. Turn click-through off before dragging or clicking the overlay again.
+- In the Settings and Your music windows, **⌘W** closes the window and **⌘Q** quits Linory.
 - Set background opacity to 0% for floating text. Positive timing offsets show lyrics earlier.
 - The interface follows the macOS language (English or German, English otherwise). Override it under **Settings → General → Language**; the change applies immediately.
 - If the global shortcut is already registered by another app, a warning is shown; the menu can still toggle visibility.
@@ -45,7 +46,7 @@ Play a song in Spotify or Music and allow Linory to control that app when macOS 
 
 Linory controls the player you are listening to; Spotify or Music still does all the playing.
 
-- **Controls:** a faint line under the lyrics shows the song's progress. Hover over the overlay and ♥, previous, play/pause and next appear next to the title, and the line becomes a scrubber with the elapsed and remaining time; click or drag it to seek. The controls stay hidden while click-through is on. The menu's now-playing header (right-click the menu-bar icon) always shows them while a track plays.
+- **Controls:** a faint line under the lyrics shows the song's progress. Hover over the overlay and ♥, previous, play/pause and next appear next to the title, and the line becomes a scrubber with the elapsed and remaining time; click or drag it to seek. The controls stay hidden while click-through is on. The menu's now-playing header (click the menu-bar icon) always shows them while a track plays.
 - **Seek:** click or drag the progress bar. It shows elapsed and remaining time.
 - **Click a lyric line** to jump the song to that line (synced lyrics only). The timing offset is respected, so the clicked line is the one that lights up.
 - **Chorus:** when synced lyrics repeat a group of lines, each chorus start shows as a dot on the progress line while you hover. Click a dot to jump there.
@@ -70,7 +71,7 @@ Your Spotify account needs **Premium**. Spotify limits apps in development mode 
 
 ## True Shuffle
 
-True Shuffle plays a source in an honest random order, with no repeats until every track has played. It needs a [Spotify connection](#connect-spotify-optional). Open it from the menu: right-click the menu-bar icon, then **True Shuffle**.
+True Shuffle plays a source in an honest random order, with no repeats until every track has played. It needs a [Spotify connection](#connect-spotify-optional). Open it from the menu: click the menu-bar icon, then **True Shuffle**.
 
 - **Sources:** Liked Songs, plus playlists you own or collaborate on. Spotify only lets development-mode apps read those, so playlists made by Spotify (Daily Mix, Discover Weekly) and other people's playlists are missing.
 - **Mix sources:** the stack button next to the source picker opens a checklist. Check several sources (for example Liked Songs and two playlists) to shuffle them as one; a song in more than one of them counts once. A mix keeps its own progress, and choosing the same sources again, in any order, continues it. Mixes you have shuffled before stay in the source picker.
@@ -85,11 +86,11 @@ True Shuffle plays a source in an honest random order, with no repeats until eve
 
 ## Sleep timer
 
-Right-click the menu-bar icon, then **Sleep timer**, and pick 15, 30, 45 or 60 minutes, or **End of track**. When the time is up, Linory pauses the player it shows (Spotify or Music) through AppleScript, the same way the pause button does. The menu shows the time left; **Off** cancels it. End of track pauses just before the current song ends. The timer does not survive quitting Linory.
+Click the menu-bar icon, then **Sleep timer**, and pick 15, 30, 45 or 60 minutes, or **End of track**. When the time is up, Linory pauses the player it shows (Spotify or Music) through AppleScript, the same way the pause button does. The menu shows the time left; **Off** cancels it. End of track pauses just before the current song ends. The timer does not survive quitting Linory.
 
 ## Your music
 
-Open **Your music** from the menu (right-click the menu-bar icon). It shows what you listened to while Linory was running, in Spotify and Music, for today, the last 7 or 30 days, 12 months, or all time:
+Open **Your music** from the menu (click the menu-bar icon). It shows what you listened to while Linory was running, in Spotify and Music, for today, the last 7 or 30 days, 12 months, or all time:
 
 - **Tiles:** listening time (with the daily average), plays (with the share that had synced lyrics), your day streak, and how many songs you skipped.
 - **Listening over time** and the **listening clock** (weekday × hour). Hover a bar or cell for its exact time.

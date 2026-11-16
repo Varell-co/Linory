@@ -57,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
         clickThrough = UserDefaults.standard.bool(forKey: "clickThrough")
         overlay.orderFrontRegardless()
-        installEditMenu()
+        installMainMenu()
         shuffle = ShuffleController(auth: spotify)
         model.onTrackChange = { [weak self] track in
             self?.shuffle.trackChanged(uri: track.source == .spotify ? track.rawID : nil)
@@ -76,9 +76,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self?.applyLanguage()
         }
     }
-    /// A menu-bar-only app has no visible menu bar, but text fields still get ⌘C, ⌘V, ⌘X, ⌘A and ⌘Z only
-    /// through Edit menu key equivalents. Without this, pasting the Spotify Client ID does nothing.
-    private func installEditMenu() {
+    /// A menu-bar-only app has no visible menu bar, but its windows still get ⌘Q, ⌘W, ⌘C, ⌘V, ⌘X, ⌘A and ⌘Z
+    /// only through main menu key equivalents. Without this, pasting the Spotify Client ID does nothing.
+    private func installMainMenu() {
+        let app = NSMenu(title: "Linory")
+        app.addItem(withTitle: "Quit Linory", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let window = NSMenu(title: "Window")
+        window.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         let edit = NSMenu(title: "Edit")
         edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
         edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
@@ -88,10 +92,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         let main = NSMenu()
-        main.addItem(NSMenuItem()) // the first item is the app menu
-        let editItem = NSMenuItem()
-        editItem.submenu = edit
-        main.addItem(editItem)
+        for submenu in [app, edit, window] { // the first item is the app menu
+            let item = NSMenuItem()
+            item.submenu = submenu
+            main.addItem(item)
+        }
         NSApp.mainMenu = main
     }
     /// Strings that stay on screen; the menu popover follows the language by itself.
@@ -156,17 +161,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menuActions.openStats = { [weak self] in self?.menuWindow.close(); self?.showStats() }
         menuActions.quit = { NSApp.terminate(nil) }
     }
-    /// The right-click menu: a glass panel matching the overlay (see MenuWindow).
+    /// The menu-bar menu: a glass panel matching the overlay (see MenuWindow).
     private lazy var menuWindow = MenuWindow { [unowned self] in AnyView(MenuPanel(model: self.model, actions: self.menuActions, auth: self.spotify, shuffle: self.shuffle,
                                                                                          expanded: $0, measuring: $0 != nil)) }
     private func toggleMenu(from button: NSStatusBarButton) { menuWindow.toggle(below: button) }
-    @objc func statusClicked(_ sender: NSStatusBarButton) {
-        if NSApp.currentEvent?.type == .rightMouseUp {
-            toggleMenu(from: sender)
-        } else {
-            showSettings()
-        }
-    }
+    @objc func statusClicked(_ sender: NSStatusBarButton) { toggleMenu(from: sender) }
     @objc func toggleVisibility() { setUserHidden(isShowing) }
     private func setUserHidden(_ hidden: Bool) {
         userHidden = hidden
