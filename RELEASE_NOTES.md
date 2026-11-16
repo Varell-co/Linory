@@ -1,3 +1,13 @@
+# Linory v0.3.1
+
+## New
+
+- Open the menu on any menu-bar click and add ⌘W and ⌘Q## Fixed
+
+- Clean up release notes draft on cancel
+
+---
+
 # Linory v0.3.0
 
 Linory becomes a lyrics mini-player with honest shuffling and a look back at what you listened to. v0.2.0 was never published as a release, so its changes (listed below) ship here too.
