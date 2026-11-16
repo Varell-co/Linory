@@ -52,10 +52,12 @@ if [[ "$(head -1 RELEASE_NOTES.md)" != "# Linory $TAG" ]]; then
   }
   BODY="$(section feat New)$(section fix Fixed)"
   [[ -n "$BODY" ]] || fail "No feat: or fix: commits since ${LAST_TAG:-the start}; nothing to release."
-  printf '# Linory %s\n\n%s\n---\n\n' "$TAG" "$BODY" | cat - RELEASE_NOTES.md > RELEASE_NOTES.md.tmp
+  printf '# Linory %s\n\n%s\n\n---\n\n' "$TAG" "$BODY" | cat - RELEASE_NOTES.md > RELEASE_NOTES.md.tmp
   mv RELEASE_NOTES.md.tmp RELEASE_NOTES.md
 fi
 
+# Ctrl+C at the prompt must not leave a half-written draft behind.
+trap 'git checkout -- RELEASE_NOTES.md; echo; fail "Cancelled; nothing was changed."' INT
 echo "Releasing $CURRENT -> $VERSION with these notes:"
 echo
 awk '/^---$/{exit} {print "  " $0}' RELEASE_NOTES.md
@@ -66,11 +68,13 @@ if ! $ASSUME_YES; then
     read -r -p "Publish $TAG? [y/N] " answer
   fi
   if [[ "$answer" != "y" ]]; then
+    trap - INT
     git checkout -- RELEASE_NOTES.md
     fail "Cancelled; nothing was changed."
   fi
 fi
 
+trap - INT
 echo "$VERSION" > VERSION
 bash build-release.sh "$VERSION"
 ARCHIVE="dist/Linory-$VERSION-universal.zip"
