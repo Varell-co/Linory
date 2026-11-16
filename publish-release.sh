@@ -47,12 +47,16 @@ if [[ "$(head -1 RELEASE_NOTES.md)" != "# Linory $TAG" ]]; then
   section() { # $1 = commit type, $2 = heading
     local lines
     lines="$(git log --format=%s "$RANGE" | sed -nE "s/^$1(\([^)]*\))?!?: (.)(.*)/- \2\3/p" | awk '{ print toupper(substr($0,1,3)) substr($0,4) }')"
-    [[ -n "$lines" ]] && printf '## %s\n\n%s\n\n' "$2" "$lines"
+    [[ -n "$lines" ]] && printf '## %s\n\n%s' "$2" "$lines"
     return 0
   }
-  BODY="$(section feat New)$(section fix Fixed)"
+  # $(...) drops trailing newlines, so the blank lines between sections are added here.
+  BODY=""
+  for part in "$(section feat New)" "$(section fix Fixed)"; do
+    [[ -n "$part" ]] && BODY+="$part"$'\n\n'
+  done
   [[ -n "$BODY" ]] || fail "No feat: or fix: commits since ${LAST_TAG:-the start}; nothing to release."
-  printf '# Linory %s\n\n%s\n\n---\n\n' "$TAG" "$BODY" | cat - RELEASE_NOTES.md > RELEASE_NOTES.md.tmp
+  printf '# Linory %s\n\n%s---\n\n' "$TAG" "$BODY" | cat - RELEASE_NOTES.md > RELEASE_NOTES.md.tmp
   mv RELEASE_NOTES.md.tmp RELEASE_NOTES.md
 fi
 

@@ -2,9 +2,7 @@
 
 ## New
 
-- Open the menu on any menu-bar click and add ⌘W and ⌘Q## Fixed
-
-- Clean up release notes draft on cancel
+- Open the menu on any menu-bar click and add ⌘W and ⌘Q
 
 ---
 
