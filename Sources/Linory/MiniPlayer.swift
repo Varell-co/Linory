@@ -218,7 +218,8 @@ struct ProgressLine: View {
     private var duration: Double { model.track?.duration ?? 0 }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 0.25, paused: !model.clock.playing || dragFraction != nil)) { context in
+        // The hairline moves about 2 pt per second, so once a second is enough until it expands to show the time.
+        TimelineView(.animation(minimumInterval: expanded ? 0.25 : 1, paused: !model.clock.playing || dragFraction != nil)) { context in
             let position = dragFraction.map { $0 * duration } ?? model.clock.position(at: context.date)
             HStack(spacing: 8) {
                 if expanded { label(Scrubber.time(position)).transition(.opacity) }

@@ -78,7 +78,7 @@ struct OverlayView: View {
     private var lyricsArea: some View {
         GeometryReader { geo in
             // Segmentation changes with the lyrics or layout, never on every playback frame.
-            TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !model.clock.playing)) { context in
+            TimelineView(frames) { context in
                 lyrics(at: model.clock.position(at: context.date) + offset + model.trackOffset,
                        time: context.date.timeIntervalSinceReferenceDate, width: geo.size.width)
                     .frame(width: geo.size.width, height: geo.size.height)
@@ -94,6 +94,28 @@ struct OverlayView: View {
         .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.12),
                                      .init(color: .black, location: 0.88), .init(color: .clear, location: 1)],
                              startPoint: .top, endPoint: .bottom))
+    }
+
+    /// Every frame costs a glass re-render, so frames are drawn only while something moves: words lighting up,
+    /// or the break dots. A fully lit line waits for the next line's start without drawing (see `LyricsFrames`).
+    private var frames: LyricsFrames {
+        guard model.clock.playing else { return LyricsFrames { _ in nil } }
+        let clock = model.clock, shift = offset + model.trackOffset, lines = lines
+        return LyricsFrames { date in
+            let position = clock.position(at: date) + shift
+            if busy(at: position) { return date.addingTimeInterval(LyricsFrames.interval) }
+            let next = lines.first { $0.time > position }?.time
+            return next.map { date.addingTimeInterval(max(LyricsFrames.interval, $0 - position)) }
+        }
+    }
+
+    /// True while the frame at `position` differs from the next one.
+    private func busy(at position: Double) -> Bool {
+        let current = LRC.currentIndex(lines, at: position) ?? -1
+        if waitProgress(current, at: position) != nil { return true }
+        guard model.lyrics?.synced == true, lines.indices.contains(current) else { return false }
+        let next = lines.indices.contains(current + 1) ? lines[current + 1].time : nil
+        return WordHighlight.units(for: lines[current], nextTime: next, at: position).contains { $0.fill < 1 }
     }
 
     // MARK: Mini-player
@@ -272,6 +294,21 @@ struct OverlayView: View {
     }
 }
 
+/// Frame dates for the lyrics: `next` returns the date after the given one that needs drawing, or nil to stop.
+/// Rebuilt with every clock update, so it follows seeks and pauses.
+struct LyricsFrames: TimelineSchedule {
+    static let interval = 1.0 / 30
+    let next: (Date) -> Date?
+
+    func entries(from startDate: Date, mode: TimelineScheduleMode) -> AnyIterator<Date> {
+        var date: Date? = startDate
+        return AnyIterator {
+            defer { date = date.flatMap(next) }
+            return date
+        }
+    }
+}
+
 /// The app icon comes alive while music plays (see `LinorySymbol`) and settles back to the logo on pause.
 /// Resuming eases in over 0.8 s rather than jumping to full motion.
 private struct NoLyricsSymbol: View {
@@ -284,7 +321,7 @@ private struct NoLyricsSymbol: View {
 
     var body: some View {
         // Wall time, not playback position: the clock re-anchors on every poll and seek, which made the ribbons jump.
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !moving)) { context in
+        TimelineView(.animation(minimumInterval: LyricsFrames.interval, paused: !moving)) { context in
             LinorySymbol(time: context.date.timeIntervalSinceReferenceDate,
                          drift: moving ? Motion.easeInOut(min(1, max(0, context.date.timeIntervalSince(startedAt) / 0.8))) : 0)
                 .frame(width: 56, height: 42)
