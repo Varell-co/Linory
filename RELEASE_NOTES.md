@@ -1,3 +1,12 @@
+# Linory v0.3.2
+
+## Changed
+
+- **Linory now lives at [Varell-co/Linory](https://github.com/Varell-co/Linory).** Releases and the Homebrew cask moved there. If you installed with Homebrew, run `brew untap mikeleonfox/linory`, then `brew tap varell-co/linory https://github.com/Varell-co/Linory` and `brew install --cask linory`.
+- **New bundle ID `co.varell.linory`.** Settings, history and the Spotify connection are not carried over from older versions, and macOS asks for Automation permission again.
+
+---
+
 # Linory v0.3.1
 
 ## New
