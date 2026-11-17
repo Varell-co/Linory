@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # Pinned: with an upstream remote, gh would otherwise default to the original repo.
-REPO="MikeLeonFox/LyricsOverlay"
+REPO="Varell-co/Linory"
 CASK="Casks/linory.rb"
 BUMP="patch"
 ASSUME_YES=false

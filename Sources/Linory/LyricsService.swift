@@ -4,7 +4,7 @@ import os
 
 /// Lookup order: disk cache, LRCLIB `/api/get`, then `/api/search`. Network errors are never cached.
 actor LyricsService {
-    static let subsystem = "io.github.mikeleonfox.lyricsoverlay"
+    static let subsystem = "co.varell.linory"
     private let log = Logger(subsystem: LyricsService.subsystem, category: "lyrics")
     private let cacheURL: URL
     private var store: LyricsCacheStore?

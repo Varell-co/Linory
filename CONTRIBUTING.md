@@ -11,5 +11,5 @@ This repository is a fork. The original project is configured as the `upstream` 
 To see what the app is doing, stream its logs (metadata only, never lyrics text):
 
 ```sh
-log stream --predicate 'subsystem == "io.github.mikeleonfox.lyricsoverlay"'
+log stream --predicate 'subsystem == "co.varell.linory"'
 ```

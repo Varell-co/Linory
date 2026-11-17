@@ -14,15 +14,15 @@
 With [Homebrew](https://brew.sh):
 
 ```sh
-brew tap mikeleonfox/linory https://github.com/MikeLeonFox/LyricsOverlay
-brew trust mikeleonfox/linory
+brew tap varell-co/linory https://github.com/Varell-co/Linory
+brew trust varell-co/linory
 brew install --cask linory
 brew upgrade --cask linory   # later, to update
 ```
 
 The cask removes the quarantine flag from `Linory.app` only, so the unnotarized app opens without a Gatekeeper prompt. Installing it is your decision to trust this build. `brew uninstall --zap --cask linory` also removes the lyrics cache, listening history and settings.
 
-Without Homebrew, download the latest ZIP from [GitHub Releases](https://github.com/MikeLeonFox/LyricsOverlay/releases), extract it, and open `Linory.app`. The early release is **not notarized or signed with an Apple Developer ID**; macOS Gatekeeper may block it. Only open it if you trust the source. If blocked, review Apple's [instructions for safely opening an app](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac). Do not disable Gatekeeper globally. This release has not yet been tested on another Mac or on Intel hardware.
+Without Homebrew, download the latest ZIP from [GitHub Releases](https://github.com/Varell-co/Linory/releases), extract it, and open `Linory.app`. The early release is **not notarized or signed with an Apple Developer ID**; macOS Gatekeeper may block it. Only open it if you trust the source. If blocked, review Apple's [instructions for safely opening an app](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac). Do not disable Gatekeeper globally. This release has not yet been tested on another Mac or on Intel hardware.
 
 Play a song in Spotify or Music and allow Linory to control that app when macOS asks. macOS asks separately for each player. If permission is denied, check **System Settings → Privacy & Security → Automation**. The app reads the current track and playback position through the player's AppleScript interface; it does not require a login or API credentials. Radio streams in Music have no readable track and show no lyrics.
 

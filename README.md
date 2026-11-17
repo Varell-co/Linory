@@ -10,7 +10,7 @@
 <p align="center">Floating synced lyrics for macOS.<br>Keep the words in view. Stay with what you’re doing.</p>
 
 <p align="center">
-  <a href="https://github.com/MikeLeonFox/LyricsOverlay/releases"><b>Download for Mac ↗</b></a> &nbsp; · &nbsp;
+  <a href="https://github.com/Varell-co/Linory/releases"><b>Download for Mac ↗</b></a> &nbsp; · &nbsp;
   <a href="docs/USAGE.md">Getting started</a> &nbsp; · &nbsp;
   <a href="docs/DEVELOPMENT.md">Build from source</a>
 </p>
@@ -40,12 +40,12 @@ Follow the current line as words brighten with playback. Keep the next lines nea
 Install with [Homebrew](https://brew.sh):
 
 ```sh
-brew tap mikeleonfox/linory https://github.com/MikeLeonFox/LyricsOverlay
-brew trust mikeleonfox/linory
+brew tap varell-co/linory https://github.com/Varell-co/Linory
+brew trust varell-co/linory
 brew install --cask linory
 ```
 
-Update later with `brew upgrade --cask linory`. Or download the latest ZIP from [Releases](https://github.com/MikeLeonFox/LyricsOverlay/releases), extract it, and open `Linory.app`. Play a song and allow macOS Automation access to your player when prompted. Lyrics need no player login or API key.
+Update later with `brew upgrade --cask linory`. Or download the latest ZIP from [Releases](https://github.com/Varell-co/Linory/releases), extract it, and open `Linory.app`. Play a song and allow macOS Automation access to your player when prompted. Lyrics need no player login or API key.
 
 > [!IMPORTANT]
 > **Early, unnotarized prototype.** This build has no Apple Developer ID signature and may be blocked by Gatekeeper. Only open it if you trust the source; follow [Apple’s opening instructions](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac). Do not disable Gatekeeper globally. Tested on one Mac; Intel hardware and the full macOS 13+ deployment range remain unverified.

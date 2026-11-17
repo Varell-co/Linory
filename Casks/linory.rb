@@ -2,10 +2,10 @@ cask "linory" do
   version "0.3.1"
   sha256 "45e1d60e4bad4ba8a7c651377ef71f1f758f0dab5150d3783f50a358fd9d090e"
 
-  url "https://github.com/MikeLeonFox/LyricsOverlay/releases/download/v#{version}/Linory-#{version}-universal.zip"
+  url "https://github.com/Varell-co/Linory/releases/download/v#{version}/Linory-#{version}-universal.zip"
   name "Linory"
   desc "Floating synced lyrics for Spotify and Apple Music"
-  homepage "https://github.com/MikeLeonFox/LyricsOverlay"
+  homepage "https://github.com/Varell-co/Linory"
 
   livecheck do
     url :url
@@ -25,10 +25,10 @@ cask "linory" do
         writable_base:  :appdir
   end
 
-  uninstall quit: "io.github.mikeleonfox.lyricsoverlay"
+  uninstall quit: "co.varell.linory"
 
   zap trash: [
-    "~/Library/Application Support/io.github.mikeleonfox.lyricsoverlay",
-    "~/Library/Preferences/io.github.mikeleonfox.lyricsoverlay.plist",
+    "~/Library/Application Support/co.varell.linory",
+    "~/Library/Preferences/co.varell.linory.plist",
   ]
 end
