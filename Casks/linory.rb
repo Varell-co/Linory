@@ -1,6 +1,6 @@
 cask "linory" do
-  version "0.3.2"
-  sha256 "4e71041ef4823427ac0497b17b5faa2187981944fa9e343e81c5902230e071f6"
+  version "0.3.3"
+  sha256 "359ea544a455741bc5c9e6f23baf1937ef9d1d3e85ea464eaa32d0af64977490"
 
   url "https://github.com/Varell-co/Linory/releases/download/v#{version}/Linory-#{version}-universal.zip"
   name "Linory"
