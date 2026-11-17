@@ -33,12 +33,13 @@ Play a song in Spotify or Music and allow Linory to control that app when macOS 
 - Lyrics stay on one line and shrink to fit their width. Five nearby lines scroll as playback advances.
 - A lyric that would shrink below 60% of your chosen font size is split into two consecutive entries at a word boundary. Split timing uses word timestamps when available and estimates otherwise.
 - Click **⋯** in the overlay, or **Settings** in the menu, to open settings.
-- Click the menu-bar icon to open the menu: show or hide the overlay, position it, toggle click-through, or quit. Turn click-through off before dragging or clicking the overlay again.
+- Click the menu-bar icon to open the menu: show or hide the overlay, position it, toggle click-through, pin it to a desktop, or quit. Turn click-through off before dragging or clicking the overlay again.
 - In the Settings and Your music windows, **⌘W** closes the window and **⌘Q** quits Linory.
 - Set background opacity to 0% for floating text. Positive timing offsets show lyrics earlier.
 - The interface follows the macOS language (English or German, English otherwise). Override it under **Settings → General → Language**; the change applies immediately.
 - If the global shortcut is already registered by another app, a warning is shown; the menu can still toggle visibility.
-- Click-through is remembered across relaunches. Reopening the app from Finder or the Dock turns it off again.
+- Click-through is remembered across relaunches. Reopening the app from Finder or the Dock turns click-through off and brings a pinned overlay to the current desktop.
+- **Pin to this desktop** (menu, off by default) keeps the overlay on the desktop (Space) it is on when you switch the toggle on; otherwise it appears on every desktop. Showing it with the shortcut or menu from another desktop keeps it on its own desktop. The setting is remembered across relaunches, and the overlay is then pinned to the desktop active at launch. Full-screen apps are their own desktops, so a pinned overlay does not show over them.
 - **Auto-hide when nothing is playing** (Settings → General, off by default) hides the overlay 3 seconds after playback stops and shows it again when music resumes. Hiding it yourself with the shortcut or menu always wins.
 - **Launch at login** (Settings → General) registers the app with macOS Login Items. It only works from the bundled `Linory.app`, not from `swift run`. If you move the app after enabling it, turn the option off and on again. If macOS needs your approval, Settings shows a link to System Settings.
 

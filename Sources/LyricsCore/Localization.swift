@@ -12,7 +12,7 @@ public enum AppLanguage: String, CaseIterable {
 
 public enum L10nKey: String, CaseIterable {
     // Status-item menu
-    case hideOverlay, showOverlay, clickThrough, position
+    case hideOverlay, showOverlay, clickThrough, pinToDesktop, position
     case topLeft, topRight, bottomLeft, bottomRight
     case settingsMenu, quit
     case statusItemDescription, statusItemTooltip
@@ -78,6 +78,7 @@ public enum L10n {
             .hideOverlay: "Hide overlay",
             .showOverlay: "Show overlay",
             .clickThrough: "Click-through",
+            .pinToDesktop: "Pin to this desktop",
             .position: "Position",
             .topLeft: "Top left",
             .topRight: "Top right",
@@ -261,6 +262,7 @@ public enum L10n {
             .hideOverlay: "Overlay ausblenden",
             .showOverlay: "Overlay einblenden",
             .clickThrough: "Klicks durchlassen",
+            .pinToDesktop: "An diesen Desktop heften",
             .position: "Position",
             .topLeft: "Oben links",
             .topRight: "Oben rechts",

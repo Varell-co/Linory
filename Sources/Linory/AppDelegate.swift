@@ -26,8 +26,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var clickThrough = false {
         didSet {
             UserDefaults.standard.set(clickThrough, forKey: "clickThrough")
-            overlay?.ignoresMouseEvents = clickThrough
+            // A hidden pinned overlay stays ordered in at alpha 0, so it must keep ignoring clicks.
+            overlay?.ignoresMouseEvents = clickThrough || !isShowing
             menuActions.clickThrough = clickThrough
+        }
+    }
+    /// Persisted. Pinned, the overlay belongs to the Space it was on when pinned instead of joining every Space.
+    var pinToDesktop = false {
+        didSet {
+            UserDefaults.standard.set(pinToDesktop, forKey: "pinToDesktop")
+            menuActions.pinToDesktop = pinToDesktop
+            if overlay != nil { applySpaceBehavior(movingHere: true) }
         }
     }
     /// Set by the hotkey or menu; always wins over auto-show.
@@ -39,12 +48,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var isResizingOverlay = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        UserDefaults.standard.register(defaults: ["fontSize": 25.0, "opacity": 0.78, "overlayOpacity": 1.0, "offset": 0.0, "overlayWidth": 400.0, "overlayHeight": 240.0, "language": AppLanguage.system.rawValue, "source": SourcePreference.auto.rawValue, "clickThrough": false, "autoHide": false])
+        UserDefaults.standard.register(defaults: ["fontSize": 25.0, "opacity": 0.78, "overlayOpacity": 1.0, "offset": 0.0, "overlayWidth": 400.0, "overlayHeight": 240.0, "language": AppLanguage.system.rawValue, "source": SourcePreference.auto.rawValue, "clickThrough": false, "pinToDesktop": false, "autoHide": false])
         NSApp.setActivationPolicy(.accessory)
+        pinToDesktop = UserDefaults.standard.bool(forKey: "pinToDesktop") // before the overlay exists: no Space move yet
         overlay = NSPanel(contentRect: NSRect(x: 0, y: 0, width: UserDefaults.standard.double(forKey: "overlayWidth"), height: UserDefaults.standard.double(forKey: "overlayHeight")), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         overlay.isOpaque = false; overlay.backgroundColor = .clear; overlay.hasShadow = true
         overlay.level = .floating; overlay.isMovableByWindowBackground = true
-        overlay.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        applySpaceBehavior(movingHere: false) // the first orderFrontRegardless below places a pinned overlay on the active Space
         overlay.contentView = NSHostingView(rootView: OverlayView(model: model, showSettings: { [weak self] in self?.showSettings() }))
         overlay.delegate = self
         if let saved = UserDefaults.standard.string(forKey: "windowFrame"), NSRectFromString(saved).width > 0 {
@@ -118,6 +128,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         clickThrough = false
         setUserHidden(false)
+        // The escape hatch for an overlay pinned to another desktop.
+        if pinToDesktop { applySpaceBehavior(movingHere: true) }
         showSettings()
         return true
     }
@@ -156,6 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
         menuActions.toggleOverlay = { [weak self] in self?.toggleVisibility() }
         menuActions.toggleClickThrough = { [weak self] in self?.toggleClick() }
+        menuActions.togglePinToDesktop = { [weak self] in self?.pinToDesktop.toggle() }
         menuActions.moveTo = { [weak self] corner in self?.position(corner) }
         menuActions.openSettings = { [weak self] in self?.menuWindow.close(); self?.showSettings() }
         menuActions.openStats = { [weak self] in self?.menuWindow.close(); self?.showStats() }
@@ -181,9 +194,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             notPlayingSince: [model.notPlayingSince, manualShowAt].compactMap { $0 }.max(), now: Date())
         guard show != isShowing else { return }
         isShowing = show
+        overlay.ignoresMouseEvents = clickThrough || !show
         // Auto-hide fades; the hotkey and menu stay instant, because keyboard actions must never feel delayed.
         let duration = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? (show ? 0.22 : 0.16) : 0
-        if show {
+        // Pinned, the overlay is never ordered out: ordering it in again would place it on the active Space and move the pin.
+        if show && !(pinToDesktop && overlay.isVisible) {
             overlay.alphaValue = duration > 0 ? 0 : 1
             overlay.orderFrontRegardless()
         }
@@ -192,10 +207,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             context.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
             overlay.animator().alphaValue = show ? 1 : 0
         }, completionHandler: { [weak self] in
-            guard let self, !self.isShowing else { return } // shown again mid-fade
+            guard let self, !self.isShowing, !self.pinToDesktop else { return } // shown again mid-fade, or pinned
             self.overlay.orderOut(nil)
             self.overlay.alphaValue = 1
         })
+    }
+    /// Pinned, the overlay belongs to one Space; ordering it out and in again places it on the active Space.
+    /// While pinned and hidden it stays ordered in at alpha 0 (see applyVisibility).
+    private func applySpaceBehavior(movingHere: Bool) {
+        let pinned = pinToDesktop
+        if pinned && movingHere { overlay.orderOut(nil) }
+        overlay.collectionBehavior = pinned ? [.managed] : [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        if pinned && movingHere {
+            if !isShowing { overlay.alphaValue = 0 }
+            overlay.orderFrontRegardless()
+        }
+        // Unpinned, a hidden overlay is ordered out at alpha 1, as applyVisibility expects.
+        if !pinned && !isShowing { overlay.orderOut(nil); overlay.alphaValue = 1 }
     }
     @objc func toggleClick() { clickThrough.toggle() }
     @objc func showSettings() {

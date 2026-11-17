@@ -5,8 +5,10 @@ import LyricsCore
 final class MenuActions: ObservableObject {
     @Published var overlayVisible = true
     @Published var clickThrough = false
+    @Published var pinToDesktop = false
     var toggleOverlay: () -> Void = {}
     var toggleClickThrough: () -> Void = {}
+    var togglePinToDesktop: () -> Void = {}
     var moveTo: (String) -> Void = { _ in }
     var openSettings: () -> Void = {}
     var openStats: () -> Void = {}
@@ -52,6 +54,7 @@ struct MenuPanel: View {
             Divider().padding(.horizontal, 8)
             toggleRow("rectangle.on.rectangle", t(.showOverlay), isOn: actions.overlayVisible, action: actions.toggleOverlay)
             toggleRow("cursorarrow.motionlines", t(.clickThrough), isOn: actions.clickThrough, action: actions.toggleClickThrough)
+            toggleRow("pin", t(.pinToDesktop), isOn: actions.pinToDesktop, action: actions.togglePinToDesktop)
             disclosureRow("arrow.up.left.and.arrow.down.right", t(.position), .position)
             if expanded == .position { cornerGrid.transition(sectionTransition) }
             disclosureRow("music.note.list", t(.source), .source)
