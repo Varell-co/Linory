@@ -1,3 +1,16 @@
+# Linory v0.3.3
+
+## New
+
+- **Pin to this desktop.** A new menu toggle keeps the overlay on the desktop it is on instead of every desktop. Hiding and showing never move it; reopen Linory from Finder or the Dock to bring it to the current desktop.
+- **Per-song timing.** Nudge a song's lyrics earlier or later in 0.25 s steps from the menu; Linory remembers the correction for that song. LRC `[offset:]` tags are now applied.
+
+## Changed
+
+- **Lighter on your Mac.** The lyrics and progress line only redraw while something moves, instead of every frame.
+
+---
+
 # Linory v0.3.2
 
 ## Changed
