@@ -24,6 +24,7 @@ public enum L10nKey: String, CaseIterable {
     case sourceHint, autoHideHint, launchAtLoginHint, languageHint, hotKeyTitle, hotKeyHint, timingHint, privacyNote
     case source, sourceAuto, sourceSpotify, sourceMusic, playerNameSpotify, playerNameMusic
     case fontSize, overlayOpacity, backgroundOpacity, width, height, timingOffset, opacitySuffix
+    case songTiming, songTimingReset, lyricsEarlier, lyricsLater
     case language, languageSystem, languageEnglish, languageGerman
     case autoHide, launchAtLogin, loginNeedsApproval, loginOpenSettings, loginError
     // Hotkey alert
@@ -103,6 +104,10 @@ public enum L10n {
             .width: "Width",
             .height: "Height",
             .timingOffset: "Timing offset",
+            .songTiming: "This song's timing",
+            .songTimingReset: "Reset",
+            .lyricsEarlier: "Show lyrics 0.25 s earlier",
+            .lyricsLater: "Show lyrics 0.25 s later",
             .opacitySuffix: " % opacity",
             .language: "Language",
             .languageSystem: "System",
@@ -282,6 +287,10 @@ public enum L10n {
             .width: "Breite",
             .height: "Höhe",
             .timingOffset: "Timing-Korrektur",
+            .songTiming: "Timing dieses Songs",
+            .songTimingReset: "Zurücksetzen",
+            .lyricsEarlier: "Lyrics 0,25 s früher zeigen",
+            .lyricsLater: "Lyrics 0,25 s später zeigen",
             .opacitySuffix: " % Deckkraft",
             .language: "Sprache",
             .languageSystem: "System",

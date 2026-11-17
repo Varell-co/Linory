@@ -118,10 +118,37 @@ struct MenuPanel: View {
             if model.track != nil || measuring {
                 Scrubber(model: model, language: language).padding(.top, 4)
                 TransportButtons(model: model, language: language, size: 14)
+                songTiming.padding(.top, 2)
             }
         }
         // 8 pt, like the row content, so cover, row icons and section controls share one left edge.
         .padding(.horizontal, 8).padding(.top, 6)
+    }
+
+    /// Nudges this song's lyrics in quarter-second steps; remembered for the next listen.
+    private var songTiming: some View {
+        HStack(spacing: 6) {
+            Text(t(.songTiming)).font(.system(size: 11)).foregroundStyle(.secondary)
+            Spacer(minLength: 4)
+            if model.trackOffset != 0 {
+                Button { model.setTrackOffset(0) } label: {
+                    Image(systemName: "arrow.counterclockwise").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain).help(t(.songTimingReset)).accessibilityLabel(t(.songTimingReset))
+            }
+            nudge("minus", -1, help: t(.lyricsLater))
+            Text(TrackTiming.format(model.trackOffset)).font(.system(size: 11, weight: .medium)).monospacedDigit()
+                .frame(minWidth: 48)
+            nudge("plus", 1, help: t(.lyricsEarlier))
+        }
+    }
+
+    private func nudge(_ symbol: String, _ steps: Int, help: String) -> some View {
+        Button { model.nudgeTrackOffset(by: steps) } label: {
+            Image(systemName: symbol).font(.system(size: 10, weight: .semibold)).frame(width: 22, height: 18)
+                .background(Capsule().fill(.primary.opacity(0.08)))
+        }
+        .buttonStyle(PressableStyle(scale: 0.9)).help(help).accessibilityLabel(help)
     }
 
     private func toggleRow(_ symbol: String, _ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {

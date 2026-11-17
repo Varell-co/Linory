@@ -20,12 +20,27 @@ public struct LyricWord: Equatable, Codable {
 public enum LRC {
     private static let lineTag = try! NSRegularExpression(pattern: #"\[(\d{1,3}):(\d{2}(?:\.\d+)?)\]"#)
     private static let wordTag = try! NSRegularExpression(pattern: #"<(\d{1,3}):(\d{2}(?:\.\d+)?)>"#)
+    private static let offsetTag = try! NSRegularExpression(pattern: #"^\s*\[offset:\s*([+-]?\d+)\s*\]\s*$"#, options: .caseInsensitive)
 
     public static func parse(_ input: String) -> [LyricLine] {
         var lines: [LyricLine] = []
+        // `[offset:+500]` is in milliseconds; positive shows the lyrics earlier.
+        var fileOffset: TimeInterval = 0
         for raw in input.components(separatedBy: .newlines) {
             let ns = raw as NSString
-            let matches = lineTag.matches(in: raw, range: NSRange(location: 0, length: ns.length))
+            let range = NSRange(location: 0, length: ns.length)
+            if let tag = offsetTag.firstMatch(in: raw, range: range), let ms = Double(ns.substring(with: tag.range(at: 1))) {
+                fileOffset = ms / 1000
+                continue
+            }
+            // Only the timestamps at the start of the line time it; one inside the text belongs to the lyric.
+            var matches: [NSTextCheckingResult] = []
+            for match in lineTag.matches(in: raw, range: range) {
+                let end = matches.last.map { NSMaxRange($0.range) } ?? 0
+                guard ns.substring(with: NSRange(location: end, length: match.range.location - end))
+                    .trimmingCharacters(in: .whitespaces).isEmpty else { break }
+                matches.append(match)
+            }
             guard let last = matches.last else { continue }
             let (text, timedWords) = words(in: ns.substring(from: last.range.location + last.range.length))
             for match in matches {
@@ -36,7 +51,9 @@ public enum LRC {
                 lines.append(LyricLine(time: time, text: text, words: relative))
             }
         }
-        return lines.sorted { $0.time < $1.time }
+        guard fileOffset != 0 else { return lines.sorted { $0.time < $1.time } }
+        // Times may go below zero; the per-song offset can still bring them back.
+        return lines.map { LyricLine(time: $0.time - fileOffset, text: $0.text, words: $0.words) }.sorted { $0.time < $1.time }
     }
 
     /// Splits text with optional enhanced-LRC word tags like `<00:12.34>` into display text and timed words.
@@ -76,7 +93,7 @@ public struct LyricsResult: Decodable {
     public let plainLyrics: String?
     public let syncedLyrics: String?
 
-    var hasSynced: Bool { !(syncedLyrics ?? "").isEmpty && !LRC.parse(syncedLyrics ?? "").isEmpty }
+    var hasSynced: Bool { LRC.parse(syncedLyrics ?? "").contains { !$0.text.isEmpty } }
     var hasPlain: Bool { !(plainLyrics ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 }
 

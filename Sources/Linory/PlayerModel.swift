@@ -10,6 +10,8 @@ final class PlayerModel: ObservableObject {
     /// Empty unless the lyrics are synced and a repeated group of lines was found.
     @Published private(set) var chorusStarts: [TimeInterval] = []
     @Published var artwork: NSImage?
+    /// This song's timing correction (see `TrackTiming`), on top of the global offset.
+    @Published private(set) var trackOffset = 0.0
     @Published var clock = PlaybackClock()
     @Published var status: StatusMessage = .waitingForPlayer
     /// Starts at launch, so auto-hide also waits the grace period before hiding an idle overlay.
@@ -70,11 +72,23 @@ final class PlayerModel: ObservableObject {
     /// Seeks so that the lyrics show `time`. The timing offset shifts lyrics earlier, so the player goes there earlier too.
     /// The extra 10 ms keeps rounding from landing just before the line.
     func seek(toLyricTime time: TimeInterval) {
-        seek(to: time - UserDefaults.standard.double(forKey: "offset") + 0.01)
+        seek(to: time - timingOffset + 0.01)
+    }
+
+    /// Global plus per-song offset, added to player time to get lyric time.
+    var timingOffset: Double { UserDefaults.standard.double(forKey: "offset") + trackOffset }
+
+    func nudgeTrackOffset(by steps: Int) { setTrackOffset(TrackTiming.nudged(trackOffset, by: steps)) }
+
+    func setTrackOffset(_ value: Double) {
+        guard let id = track?.id else { return }
+        trackOffset = value
+        if value == 0 { UserDefaults.standard.removeObject(forKey: TrackTiming.key(for: id)) }
+        else { UserDefaults.standard.set(value, forKey: TrackTiming.key(for: id)) }
     }
 
     func jumpToChorus() {
-        let now = clock.position(at: Date()) + UserDefaults.standard.double(forKey: "offset")
+        let now = clock.position(at: Date()) + timingOffset
         if let start = Chorus.next(after: now, starts: chorusStarts) { seek(toLyricTime: start) }
     }
 
@@ -174,7 +188,7 @@ final class PlayerModel: ObservableObject {
 
     private func clear(_ message: StatusMessage) {
         if track != nil { generation += 1 }
-        track = nil; lyrics = nil; artwork = nil; clock.reset(); status = message
+        track = nil; lyrics = nil; artwork = nil; trackOffset = 0; clock.reset(); status = message
         if notPlayingSince == nil { notPlayingSince = Date() }
     }
 
@@ -191,6 +205,7 @@ final class PlayerModel: ObservableObject {
         if snapshot.playing { notPlayingSince = nil } else if notPlayingSince == nil { notPlayingSince = Date() }
         guard track != snapshot.track else { return }
         track = snapshot.track
+        trackOffset = UserDefaults.standard.double(forKey: TrackTiming.key(for: snapshot.track.id))
         onTrackChange?(snapshot.track)
         lyrics = nil
         artwork = nil

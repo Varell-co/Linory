@@ -239,7 +239,7 @@ struct ProgressLine: View {
 
     private func bar(fraction: Double) -> some View {
         let active = expanded || dragFraction != nil
-        let offset = UserDefaults.standard.double(forKey: "offset")
+        let offset = model.timingOffset
         return GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(.primary.opacity(active ? 0.16 : 0.1))

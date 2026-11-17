@@ -79,7 +79,7 @@ struct OverlayView: View {
         GeometryReader { geo in
             // Segmentation changes with the lyrics or layout, never on every playback frame.
             TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !model.clock.playing)) { context in
-                lyrics(at: model.clock.position(at: context.date) + offset,
+                lyrics(at: model.clock.position(at: context.date) + offset + model.trackOffset,
                        time: context.date.timeIntervalSinceReferenceDate, width: geo.size.width)
                     .frame(width: geo.size.width, height: geo.size.height)
             }

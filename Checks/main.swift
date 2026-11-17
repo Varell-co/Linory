@@ -188,6 +188,17 @@ func checkParsing() {
     precondition(enhanced.map(\.text) == ["Made up line", "Made up line"], "word timestamps are stripped from text")
     precondition(zip(enhanced[0].words?.map(\.offset) ?? [], [0, 0.4, 1.0]).allSatisfy { abs($0 - $1) < 0.001 } && enhanced[0].words?.count == 3, "word times are relative to the line")
     precondition(enhanced[1].words == enhanced[0].words, "repeated line keeps word timing")
+
+    let shifted = LRC.parse("[ar:Someone]\n[offset:+500]\n[00:00.20] Early\n[00:02.00] <00:02.00> Word <00:02.50> timed")
+    precondition(shifted.map(\.time).enumerated().allSatisfy { abs($1 - [-0.3, 1.5][$0]) < 0.001 }, "[offset:] in ms, positive shows lyrics earlier")
+    precondition(shifted[1].words?.map(\.offset) == [0, 0.5], "word timing stays relative to its line")
+    precondition(LRC.parse("[OFFSET: -250]\n[00:01.00] x")[0].time == 1.25, "negative offset delays the lyrics")
+    let inline = LRC.parse("[00:01.00] Meet me at [00:02.00] sharp")
+    precondition(inline.count == 1 && inline[0].text == "Meet me at [00:02.00] sharp", "a timestamp inside the text is lyric text")
+
+    precondition(TrackTiming.nudged(0, by: 1) == 0.25 && TrackTiming.nudged(0.25, by: -2) == -0.25)
+    precondition(TrackTiming.nudged(0.1, by: 0) == 0 && TrackTiming.nudged(9.9, by: 4) == TrackTiming.limit, "snaps to the grid and clamps")
+    precondition(TrackTiming.format(0) == "0 s" && TrackTiming.format(0.5) == "+0.50 s" && TrackTiming.format(-0.25) == "−0.25 s")
 }
 
 func checkMatching() throws {
@@ -203,6 +214,10 @@ func checkMatching() throws {
     let results = try JSONDecoder().decode([LyricsResult].self, from: Data(json.utf8))
     precondition(LyricsMatching.best(results, title: "SONG", artist: "Artist", duration: 200)?.syncedLyrics == "[00:01.00] Right")
     precondition(LyricsMatching.best(results, title: "Other", artist: "Artist", duration: 200) == nil)
+    let blank = try JSONDecoder().decode([LyricsResult].self, from: Data("""
+    [{"trackName":"Song","artistName":"Artist","duration":200,"syncedLyrics":"[00:01.00]\\n[00:05.00] "}]
+    """.utf8))
+    precondition(LyricsMatching.best(blank, title: "Song", artist: "Artist", duration: 200) == nil, "timestamps without text are not synced lyrics")
 }
 
 func checkLocalization() {
